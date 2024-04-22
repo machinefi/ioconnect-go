@@ -76,10 +76,10 @@ func (i *DIDDoc) Execute(cmd *cobra.Command) error {
 	// 	&myKeyAgreementKeyID); => *JWK
 
 	// 2. generate key agreement did
-	// iotex_did_generate("io", JWK);
+	// iotex_did_generate("io", JWK); did:io:...
 
 	// 3. generate key agreement did key(with #key fragment)
-	// iotex_jwk_generate_kid("io", peerKAJWK);
+	// iotex_jwk_generate_kid("io", peerKAJWK); did:io:...#key....
 
 	// 4. compose a did doc
 

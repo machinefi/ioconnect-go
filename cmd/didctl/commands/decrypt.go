@@ -2,8 +2,8 @@ package commands
 
 import "github.com/spf13/cobra"
 
-func NewDecryptDataCmd() *Encrypt {
-	_cmd := &Encrypt{}
+func NewDecryptDataCmd() *Decrypt {
+	_cmd := &Decrypt{}
 
 	_cmd.Command = &cobra.Command{
 		Use:   "decrypt",
@@ -15,7 +15,7 @@ func NewDecryptDataCmd() *Encrypt {
 
 	_cmd.Command.Flags().StringVarP(&_cmd.payload, "payload", "", "", "cipher data to decrypt")
 	_cmd.Command.MarkFlagRequired("payload")
-	_cmd.Command.Flags().StringVarP(&_cmd.subject, "subject", "", "", "subject did")
+	_cmd.Command.Flags().StringVarP(&_cmd.token, "token", "", "", "subject did")
 	_cmd.Command.MarkFlagRequired("subject")
 
 	return _cmd
@@ -23,11 +23,15 @@ func NewDecryptDataCmd() *Encrypt {
 
 type Decrypt struct {
 	Command *cobra.Command
+	token   string
 	payload string
-	subject string
 }
 
 func (i *Decrypt) Execute(cmd *cobra.Command) error {
-	// iotex_jwe_decrypt(jwe_json, Ecdh1puA256kw, A256cbcHs512, peerSignDID, peerSignJWK, myKAKID);
+	// token => did => serialized doc => doc datatype
+	// purpose => VM_PURPOSE_KEY_AGREEMENT
+	// iotex_diddoc_verification_method_get(doc, purpose) => index
+	// iotex_diddoc_verification_method_get(doc, purpose, index) => JWK
+	// iotex_jwe_decrypt(cipherData, Ecdh1puA256kw, A256cbcHs512, subjectSignDID, subjectMasterJWK, myKAKID) => plain data => datatype
 	return nil
 }

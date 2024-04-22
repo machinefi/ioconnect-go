@@ -15,7 +15,7 @@ func NewEncryptDataCmd() *Encrypt {
 
 	_cmd.Command.Flags().StringVarP(&_cmd.payload, "payload", "", "", "plain data to encrypt")
 	_cmd.Command.MarkFlagRequired("payload")
-	_cmd.Command.Flags().StringVarP(&_cmd.subject, "subject", "", "", "subject did")
+	_cmd.Command.Flags().StringVarP(&_cmd.sendDID, "sender-did", "", "", "sender did")
 	_cmd.Command.MarkFlagRequired("subject")
 
 	return _cmd
@@ -24,11 +24,11 @@ func NewEncryptDataCmd() *Encrypt {
 type Encrypt struct {
 	Command *cobra.Command
 	payload string
-	subject string
+	sendDID string
 }
 
 func (i *Encrypt) Execute(cmd *cobra.Command) error {
-	// iotex_jwe_json_serialize("This is a JWE Test", Ecdh1puA256kw, A256cbcHs512, peerSignDID, peerSignJWK, recipients_kid, true);
-	// TODO if encrypt payload with master key?
+	// did => did doc => JWK
+	// iotex_jwe_json_serialize("This is a JWE Test", Ecdh1puA256kw, A256cbcHs512, did, JWK, recipients_kid, true);
 	return nil
 }

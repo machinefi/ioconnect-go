@@ -2,8 +2,6 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/machinefi/ioconnect-go/pkg/jwk"
 )
 
 func NewVerifiableCredentialSignCmd() *VerifiableCredentialSign {
@@ -23,10 +21,10 @@ func NewVerifiableCredentialSignCmd() *VerifiableCredentialSign {
 }
 
 type VerifiableCredentialSign struct {
-	Command *cobra.Command
-	issuer  string
-	subject string
-	key     jwk.JWK
+	Command   *cobra.Command
+	issuer    string
+	subject   string
+	issuerKey ioconnect.JWK
 }
 
 var vc = `{
@@ -58,7 +56,7 @@ func (i *VerifiableCredentialSign) Execute(cmd *cobra.Command) error {
 	// JWTClaim_handle jwt_claim_handle = iotex_jwt_claim_new();
 
 	// 2. generate jwt token
-	// iotex_jwt_serialize(jwt_claim_handle, JWT_TYPE_JWS, ES256, mySignJWK);
+	// iotex_jwt_serialize(jwt_claim_handle, JWT_TYPE_JWS, ES256, issuerKey);
 
 	cmd.Printf("subject: %s", i.subject)
 	cmd.Printf("vc: \n%s", vc)
@@ -87,9 +85,10 @@ type VerifiableCredentialTokenValidate struct {
 
 func (i *VerifiableCredentialTokenValidate) Execute(cmd *cobra.Command) error {
 	// 1. verify token and retrieve
-	// iotex_jwt_verify(jwt_serialize, JWT_TYPE_JWS, ES256, mySignJWK)
+	// iotex_jwt_verify(jwt_serialize, JWT_TYPE_JWS, ES256, issuerKey) => subject did
 	cmd.Printf("token:     %s\n", i.token)
 	cmd.Printf("signed by: %s\n", "did:io:0xc16e25aab465d8a6dced725ec0ee7714a8f8ef02")
+	cmd.Printf("signed for: %s\n", "did:io:0xc16e25aab465d8a6dced725ec0ee7714a8f8ef02")
 	return nil
 }
 
