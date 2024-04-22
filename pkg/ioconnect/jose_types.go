@@ -70,6 +70,19 @@ func (v JwkSupportKeyAlg) CEnum() C.enum_JWKSupportKeyAlg {
 	}
 }
 
+func (v JwkSupportKeyAlg) String() string {
+	switch v {
+	case JwkSupportKeyAlg_Ed25519:
+		return "Ed25519"
+	case JwkSupportKeyAlg_P256:
+		return "P-256"
+	case JwkSupportKeyAlg_K256:
+		return "secp256k1"
+	default:
+		return ""
+	}
+}
+
 type JwkLifetime int
 
 const (

@@ -2,6 +2,8 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 )
 
 func NewVerifiableCredentialSignCmd() *VerifiableCredentialSign {

@@ -2,6 +2,7 @@ package ioconnect_test
 
 import (
 	"fmt"
+
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 )
 
@@ -14,15 +15,15 @@ func ExampleJwkType() {
 		100,
 	} {
 		cv := v.CEnum()
-		fmt.Printf("%v %T\n", cv, cv)
+		fmt.Printf("%v %s %T\n", cv, v, cv)
 	}
 
 	// Output:
-	// 1 uint32
-	// 2 uint32
-	// 3 uint32
-	// 4 uint32
-	// 4294967295 uint32
+	// 1 EC uint32
+	// 2 RSA uint32
+	// 3 OCT uint32
+	// 4 OCT uint32
+	// 4294967295  uint32
 }
 
 func ExampleJwkSupportKeyAlg() {
@@ -33,29 +34,30 @@ func ExampleJwkSupportKeyAlg() {
 		100,
 	} {
 		cv := v.CEnum()
-		fmt.Printf("%v %T\n", cv, cv)
+		fmt.Printf("%v %s %T\n", cv, v, cv)
 	}
 
 	// Output:
-	// 0 uint32
-	// 1 uint32
-	// 2 uint32
-	// 4294967295 uint32
+	// 0 Ed25519 uint32
+	// 1 P-256 uint32
+	// 2 secp256k1 uint32
+	// 4294967295  uint32
 }
 
 func ExampleJwkLifetime() {
 	for _, v := range []ioconnect.JwkLifetime{
 		ioconnect.JwkLifetime_Volatile,
 		ioconnect.JwkLifetime_Persistent,
+		100,
 	} {
 		cv := v.CConst()
-		fmt.Printf("0x%x %T\n", cv, cv)
+		fmt.Printf("%v %T\n", cv, cv)
 	}
 
 	// Output:
-	// 0x0
-	// 0x1
-	// ioconnect._Ctype_int
+	// 0 ioconnect._Ctype_int
+	// 1 ioconnect._Ctype_int
+	// -1 ioconnect._Ctype_int
 }
 
 func ExamplePsaKeyUsageType() {
