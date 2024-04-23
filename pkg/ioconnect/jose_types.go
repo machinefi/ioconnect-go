@@ -154,3 +154,16 @@ func (v PsaHashType) PsaAlgorithmECDSA() PsaHashType {
 }
 
 type PsaAlgType uint32
+
+/*
+type Bool int
+
+const (
+	False Bool = 0
+	True  Bool = 1
+)
+
+func (b Bool) CConst() C._Bool {
+	return nil
+}
+*/
