@@ -104,23 +104,47 @@ func TestNewJWK(t *testing.T) {
 }
 
 func TestDocJWK(t *testing.T) {
-	doc := []byte(`{
-        "@context":     ["https://www.w3.org/ns/did/v1", "https://w3id.org/security#keyAgreementMethod"],
-        "id":   "did:io:0xfe4101561ca184d914a14f8b6e37d187fdd7b603",
-        "keyAgreement": ["did:io:0x89f06ca9c73a174f7a55d165d4721008eec86311#Key-p256-2147483619"],
-        "verificationMethod":   [{
-                        "id":   "did:io:0x89f06ca9c73a174f7a55d165d4721008eec86311#Key-p256-2147483619",
-                        "type": "JsonWebKey2020",
-                        "controller":   "did:io:0xfe4101561ca184d914a14f8b6e37d187fdd7b603",
-                        "publicKeyJwk": {
-                                "crv":  "P-256",
-                                "x":    "b0s89g_Vhea4BgSD0RQITl0KHDTaZ0p53-KCxZNp0mU",
-                                "y":    "cf_qciP457RgEOuWF-YElW8zBc6gt9yyIhNzPUmItsU",
-                                "kty":  "EC",
-                                "kid":  "Key-p256-2147483619"
-                        }
-                }]
-}`)
+	doc := []byte(`{{
+          "@context": [
+            "https://www.w3.org/ns/did/v1",
+            "https://w3id.org/security#keyAgreementMethod"
+          ],
+          "id": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+          "authentication": [
+            "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87#Key-p256-2147483618"
+          ],
+          "keyAgreement": [
+            "did:io:0xab63218ccfa019e6daf62d3a39a126355eddfe69#Key-p256-2147483619"
+          ],
+          "verificationMethod": [
+            {
+              "id": "did:io:0xab63218ccfa019e6daf62d3a39a126355eddfe69#Key-p256-2147483619",
+              "type": "JsonWebKey2020",
+              "controller": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+              "publicKeyJwk": {
+                "crv": "P-256",
+                "x": "5O64uLgTtIb0xwX9qnvR3eo2VeEUxMqtSSjmpC6rvRM",
+                "y": "8_wJMyz5oDeKaOnoj9lxvl9E07bhB8WsZv_qBFiC7OA",
+                "d": "",
+                "kty": "EC",
+                "kid": "Key-p256-2147483619"
+              }
+            },
+            {
+              "id": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87#Key-p256-2147483618",
+              "type": "JsonWebKey2020",
+              "controller": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+              "publicKeyJwk": {
+                "crv": "P-256",
+                "x": "9n5mPtmA9m8pcRV5t8VD6mAjZBwxj3pAVp7TuIWXSDs",
+                "y": "ITvZM7ADJlx7sBN1iua4Xdi0-234sjgTiKhTu2Ytvzk",
+                "d": "",
+                "kty": "EC",
+                "kid": "Key-p256-2147483618"
+              }
+            }
+          ]
+        }`)
 
 	server, err := ioconnect.JWKFromDIDDoc(doc)
 	if err != nil {
