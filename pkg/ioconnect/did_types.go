@@ -5,7 +5,8 @@ import "time"
 
 type DIDDoc struct {
 	Contexts           []string             `json:"@context"`
-	ID                 string               `json:"id"`           // master key
+	ID                 string               `json:"id"` // master key
+	Authentication     []string             `json:"authentication"`
 	KeyAgreement       []string             `json:"keyAgreement"` // ka key
 	VerificationMethod []VerificationMethod `json:"verificationMethod,omitempty"`
 	// TODO auth/ci/cd/services etc

@@ -223,6 +223,27 @@ func (k *JWK) KeyAgreementKID(method string) string {
 	return ka.KID(method)
 }
 
+func (k *JWK) PublicKeyJwk() (*PublicKeyJwk, error) {
+	ec, ok := k.Param().(*EC)
+	if !ok {
+		return nil, errors.Errorf("unsupported jwk parameter")
+	}
+
+	kid := ""
+	if ec.Crv() == JwkSupportKeyAlg_P256.String() {
+		kid = fmt.Sprintf("Key-p256-%d", k.id)
+	} else {
+		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), k.id)
+	}
+	return &PublicKeyJwk{
+		Crv: ec.Crv(),
+		X:   ec.X(),
+		Y:   ec.Y(),
+		Kty: k.Type().String(),
+		Kid: kid,
+	}, nil
+}
+
 func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 	if doc, ok := k.docs[method]; ok {
 		return doc, nil
@@ -233,16 +254,13 @@ func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 		return nil, errors.Errorf("failed to create key agreement jwk")
 	}
 
-	ec, ok := ka.Param().(*EC)
-	if !ok {
-		return nil, errors.Errorf("unsupported jwk parameter")
+	kpk, err := k.PublicKeyJwk()
+	if err != nil {
+		return nil, err
 	}
-
-	kid := ""
-	if ec.Crv() == JwkSupportKeyAlg_P256.String() {
-		kid = fmt.Sprintf("Key-p256-%d", ka.id)
-	} else {
-		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), ka.id)
+	kapk, err := ka.PublicKeyJwk()
+	if err != nil {
+		return nil, err
 	}
 
 	doc := &DIDDoc{
@@ -250,20 +268,23 @@ func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 			"https://www.w3.org/ns/did/v1",
 			"https://w3id.org/security#keyAgreementMethod",
 		},
-		ID:           k.DID(method),
-		KeyAgreement: []string{ka.KID(method)},
-		VerificationMethod: []VerificationMethod{{
-			ID:         ka.KID(method),
-			Type:       "JsonWebKey2020",
-			Controller: k.DID(method),
-			PublicKeyJwk: PublicKeyJwk{
-				Crv: ec.Crv(),
-				X:   ec.X(),
-				Y:   ec.Y(),
-				Kty: ka.Type().String(),
-				Kid: kid,
+		ID:             k.DID(method),
+		KeyAgreement:   []string{ka.KID(method)},
+		Authentication: []string{k.KID(method)},
+		VerificationMethod: []VerificationMethod{
+			{
+				ID:           ka.KID(method),
+				Type:         "JsonWebKey2020",
+				Controller:   k.DID(method),
+				PublicKeyJwk: *kapk,
 			},
-		}},
+			{
+				ID:           k.KID(method),
+				Type:         "JsonWebKey2020",
+				Controller:   k.DID(method),
+				PublicKeyJwk: *kpk,
+			},
+		},
 	}
 	k.docs[ka.DID(method)] = doc
 
