@@ -38,7 +38,16 @@ func TestNewJWK(t *testing.T) {
 	clientdoccontent, _ := json.MarshalIndent(clientdoc, "", "  ")
 	t.Logf(string(clientdoccontent))
 
+	// mock
+	// device register: did + diddoc -> device portal(uuz)
+	// device jwk en/decrypt
+
+	// sprout: did -> portal -> did doc(serialized) ? @uuz
+	// did doc -> jwk
+	// jwk decrypt encrypt
+
 	// sign token for client
+	// client registered to portal
 	token, err := server.SignToken("io", client)
 	if err != nil {
 		t.Fatal(err)
@@ -56,13 +65,24 @@ func TestNewJWK(t *testing.T) {
 	// client.encrypt(plain, server ka id)=>cipher
 	// server.decrypt(cipher, client ka id)=>plain
 
+	// device 1
 	cipher, err := client.Encrypt("io", []byte("payload"), server.KeyAgreementKID("io"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(string(cipher))
 
-	plain, err := server.Decrypt("io", cipher, client.KeyAgreementKID("io"))
+	// _, _ = server.KeyAgreement("io")
+
+	// DID -> DOC doc->jwk
+	// server 1
+	plain, err := server.Decrypt("io", cipher, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(plain))
+
+	plain, err = server.DecryptBySenderDID("io", cipher, client.DID("io"))
 	if err != nil {
 		t.Fatal(err)
 	}

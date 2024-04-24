@@ -11,6 +11,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TODO generate JWK from DID doc
+func JWKFromDIDDoc(doc *DIDDoc) (*JWK, error) {
+	// iotex_diddoc_verification_method_get(doc, purpose) => index
+	// iotex_diddoc_verification_method_get(doc, purpose, index) => JWK
+	// idx := C.iotex_diddoc_verification_method_get(doc, C.)
+	return nil, nil
+}
+
 func NewJWK(tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType, methods ...string) (*JWK, error) {
 	key := &JWK{}
 	key._ptr = C.iotex_jwk_generate(
@@ -47,7 +55,7 @@ func NewMasterJWK(method ...string) (*JWK, error) {
 	return NewJWK(
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		JwkLifetime_Volatile,
+		JwkLifetime_Volatile, // TODO
 		PsaKeyUsageType_SignHash|PsaKeyUsageType_VerifyHash|PsaKeyUsageType_Export,
 		PsaHashType_SHA_256.PsaAlgorithmECDSA(),
 		method...,
@@ -58,7 +66,7 @@ func NewKeyAgreementJWK(method ...string) (*JWK, error) {
 	return NewJWK(
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		JwkLifetime_Volatile,
+		JwkLifetime_Volatile, // ?
 		PsaKeyUsageType_Derive,
 		PsaAlgECDH,
 		method...,
@@ -247,12 +255,14 @@ func (k *JWK) VerifyToken(token string) (string, error) {
 	return "todo_return_peer_did", nil
 }
 
-func (k *JWK) Encrypt(method string, plain []byte, issuer string) ([]byte, error) {
+func (k *JWK) Encrypt(method string, plain []byte, recipient string) ([]byte, error) {
 	data := (*C.char)(C.CBytes(plain))
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(k.DID(method)) // sender
-	recipients := [4]*C.char{C.CString(issuer)}
+
+	// for
+	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{C.CString(recipient)}
 
 	c := C.iotex_jwe_json_serialize(data, alg, enc, did, k._ptr, &recipients[0])
 	if c == nil {
@@ -261,16 +271,30 @@ func (k *JWK) Encrypt(method string, plain []byte, issuer string) ([]byte, error
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
 
-func (k *JWK) Decrypt(method string, cipher []byte, issuer string) ([]byte, error) {
+func (k *JWK) Decrypt(method string, cipher []byte, sender *JWK) ([]byte, error) {
 	data := (*C.char)(C.CBytes(cipher))
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(k.DID(method)) // sender
-	recipient := C.CString(issuer)
+	did := C.CString(sender.DID(method)) // sender
+	recipient := C.CString(k.KeyAgreementKID(method))
 
-	c := C.iotex_jwe_decrypt(data, alg, enc, did, k._ptr, recipient)
+	c := C.iotex_jwe_decrypt(data, alg, enc, did, sender._ptr, recipient)
 	if c == nil {
 		return nil, errors.Errorf("failed to decrypt data")
+	}
+	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
+}
+
+func (k *JWK) DecryptBySenderDID(method string, cipher []byte, sender string) ([]byte, error) {
+	data := (*C.char)(C.CBytes(cipher))
+	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	did := C.CString(sender) // sender
+	recipient := C.CString(k.KeyAgreementKID(method))
+
+	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
+	if c == nil {
+		return nil, errors.Errorf("failed to decrypt data by sender did")
 	}
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
@@ -309,8 +333,4 @@ type Symmetric struct {
 
 type Oct struct {
 	_ptr C.OctetParams
-}
-
-// JWS todo
-type JWS struct {
 }

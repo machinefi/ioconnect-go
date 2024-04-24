@@ -1,5 +1,6 @@
 package ioconnect
 
+import "C"
 import "time"
 
 type DIDDoc struct {
