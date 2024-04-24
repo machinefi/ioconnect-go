@@ -391,6 +391,7 @@ func (k *JWK) DecryptBySenderDID(method string, cipher []byte, sender string) ([
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
 
+/*
 func (k *JWK) DecryptBySenderDID2(method string, cipher []byte, sender string) ([]byte, error) {
 	data := (*C.char)(C.CBytes(cipher))
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
@@ -405,6 +406,7 @@ func (k *JWK) DecryptBySenderDID2(method string, cipher []byte, sender string) (
 	}
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
+*/
 
 type EC struct {
 	_ptr C.ECParams
