@@ -15,6 +15,7 @@ func TestNewJWK(t *testing.T) {
 	}
 
 	t.Logf("server did:io:        %s", server.DID("io"))
+	t.Logf("server did:io:        %s", server.DIDio())
 	t.Logf("server did:io#key:    %s", server.KID("io"))
 	t.Logf("server ka did:io:     %s", server.KeyAgreementDID("io"))
 	t.Logf("server ka did:io#key: %s", server.KeyAgreementKID("io"))

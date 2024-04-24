@@ -172,6 +172,15 @@ func (k *JWK) DID(method string) string {
 	return v
 }
 
+func (k *JWK) DIDio() string {
+	c := C.iotex_did_generate(C.CString("io"), k._ptr)
+	if c == nil {
+		return ""
+	}
+	v := C.GoString(c)
+	return v
+}
+
 func (k *JWK) KID(method string) string {
 	v, ok := k.kids[method]
 	if ok {
