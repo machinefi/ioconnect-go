@@ -12,11 +12,38 @@ import (
 )
 
 // TODO generate JWK from DID doc
-func JWKFromDIDDoc(doc *DIDDoc) (*JWK, error) {
-	// iotex_diddoc_verification_method_get(doc, purpose) => index
-	// iotex_diddoc_verification_method_get(doc, purpose, index) => JWK
-	// idx := C.iotex_diddoc_verification_method_get(doc, C.)
-	return nil, nil
+func KeyAgreementJWKFromDIDDoc(doc []byte) (*JWK, error) {
+	ptr := C.iotex_diddoc_parse(C.CString(string(doc)))
+	if ptr == nil {
+		return nil, errors.Errorf("failed to parse did document")
+	}
+
+	num := C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_VERIFICATION_METHOD)
+	fmt.Println(num)
+	vm := C.iotex_diddoc_verification_method_get(ptr, C.VM_PURPOSE_VERIFICATION_METHOD, num)
+	if vm == nil {
+		return nil, errors.Errorf("failed to get verificaiton method info")
+	}
+	// ec := *(*C.ECParams)(unsafe.Pointer(&k._ptr.Params))
+	// fmt.Printf("ec.crv:                  %v %T\n", ec.crv, ec.crv)
+	// fmt.Printf("ec.x_coordinate:         %v %T\n", ec.x_coordinate, ec.x_coordinate)
+	// fmt.Printf("ec.y_coordinate:         %v %T\n", ec.y_coordinate, ec.y_coordinate)
+	// fmt.Printf("ec.ecc_private_key:      %v %T\n", ec.ecc_private_key, ec.ecc_private_key)
+
+	jwk := &JWK{
+		dids: make(map[string]string),
+		kids: make(map[string]string),
+		kas:  make(map[string]*JWK),
+		docs: make(map[string]*DIDDoc),
+	}
+	jwk._ptr = (*C.JWK)(unsafe.Pointer(&vm.pk_u))
+	if jwk._ptr == nil {
+		return nil, errors.Errorf("failed to get pk_u jwk")
+	}
+	if err := jwk.bindKID("io"); err != nil {
+		return nil, err
+	}
+	return jwk, nil
 }
 
 func NewJWK(tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType, methods ...string) (*JWK, error) {
@@ -154,14 +181,23 @@ func (k *JWK) KeyAgreement(method string) (*JWK, error) {
 	if err != nil {
 		return nil, err
 	}
-	kakid := ka.KID(method)
-	status := C.iotex_registry_item_register(C.CString(kakid), ka._ptr)
-	if *(*C.int)(unsafe.Pointer(&status)) < 0 {
-		return nil, errors.Errorf("failed to register ka kid")
+	if err := ka.bindKID(method); err != nil {
+		return nil, err
 	}
-
 	k.kas[method] = ka
 	return ka, nil
+}
+
+func (k *JWK) bindKID(method string) error {
+	kid := k.KID(method)
+	fmt.Println(kid)
+	status := C.iotex_registry_item_register(C.CString(kid), k._ptr)
+	// if *(*C.int)(unsafe.Pointer(&status)) < 0 {
+	if status < 0 {
+		fmt.Println(status)
+		return errors.Errorf("failed to register ka kid")
+	}
+	return nil
 }
 
 func (k *JWK) KeyAgreementDID(method string) string {
