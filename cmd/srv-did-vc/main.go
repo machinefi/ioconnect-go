@@ -1,9 +1,13 @@
-package srv_did_vc
+package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"log/slog"
+	"os"
+)
 
-type IssueTokenReq struct {
-	ClientID string `json:"clientID"`
+func main() {
+	if err := RunServer(9999, nil); err != nil {
+		slog.Error("http server down", "error", err)
+		os.Exit(-1)
+	}
 }
-
-func IssueToken(c *gin.Context) {}
