@@ -104,40 +104,40 @@ func TestNewJWK(t *testing.T) {
 }
 
 func TestDocJWK(t *testing.T) {
-	doc := []byte(`{{
+	doc := []byte(`{
           "@context": [
             "https://www.w3.org/ns/did/v1",
             "https://w3id.org/security#keyAgreementMethod"
           ],
-          "id": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+          "id": "did:io:0xa311d0c815dc5c8911ccf7f3c2708544fc61be72",
           "authentication": [
-            "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87#Key-p256-2147483618"
+            "did:io:0xa311d0c815dc5c8911ccf7f3c2708544fc61be72#Key-p256-2147483618"
           ],
           "keyAgreement": [
-            "did:io:0xab63218ccfa019e6daf62d3a39a126355eddfe69#Key-p256-2147483619"
+            "did:io:0x65f1672ea54066ebb60697440be666c4f4e71e90#Key-p256-2147483619"
           ],
           "verificationMethod": [
             {
-              "id": "did:io:0xab63218ccfa019e6daf62d3a39a126355eddfe69#Key-p256-2147483619",
+              "id": "did:io:0x65f1672ea54066ebb60697440be666c4f4e71e90#Key-p256-2147483619",
               "type": "JsonWebKey2020",
-              "controller": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+              "controller": "did:io:0xa311d0c815dc5c8911ccf7f3c2708544fc61be72",
               "publicKeyJwk": {
                 "crv": "P-256",
-                "x": "5O64uLgTtIb0xwX9qnvR3eo2VeEUxMqtSSjmpC6rvRM",
-                "y": "8_wJMyz5oDeKaOnoj9lxvl9E07bhB8WsZv_qBFiC7OA",
+                "x": "FQkXkkXgaStZhF8TlfBNdxaUS67wGsKB5_rczikYtxY",
+                "y": "OCx2JQ2BUG-iAnH-h6PFuEsZA0laA_uLvCAk9WwFau8",
                 "d": "",
                 "kty": "EC",
                 "kid": "Key-p256-2147483619"
               }
             },
             {
-              "id": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87#Key-p256-2147483618",
+              "id": "did:io:0xa311d0c815dc5c8911ccf7f3c2708544fc61be72#Key-p256-2147483618",
               "type": "JsonWebKey2020",
-              "controller": "did:io:0xb891f3302899b7b2103936c32ddeff079d2f1e87",
+              "controller": "did:io:0xa311d0c815dc5c8911ccf7f3c2708544fc61be72",
               "publicKeyJwk": {
                 "crv": "P-256",
-                "x": "9n5mPtmA9m8pcRV5t8VD6mAjZBwxj3pAVp7TuIWXSDs",
-                "y": "ITvZM7ADJlx7sBN1iua4Xdi0-234sjgTiKhTu2Ytvzk",
+                "x": "YnAQgGulIncZIayihe2CLtcBS-61wwtK-uRUGLTZceU",
+                "y": "AwtYCGJcck4oWTYrfqnrWsbtqGi295HDB4QefyQr0Nc",
                 "d": "",
                 "kty": "EC",
                 "kid": "Key-p256-2147483618"
