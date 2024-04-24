@@ -203,11 +203,13 @@ func (k *JWK) KeyAgreement(method string) (*JWK, error) {
 
 func (k *JWK) bindKID(method string) error {
 	kid := k.KID(method)
-	fmt.Println(kid)
+	if kid == "" {
+		return errors.Errorf("invalid kid")
+	}
+
 	status := C.iotex_registry_item_register(C.CString(kid), k._ptr)
 	// if *(*C.int)(unsafe.Pointer(&status)) < 0 {
 	if status < 0 {
-		fmt.Println(status)
 		return errors.Errorf("failed to register ka kid")
 	}
 	return nil
