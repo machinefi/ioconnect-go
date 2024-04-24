@@ -17,28 +17,9 @@ func KeyAgreementJWKFromDIDDoc(doc []byte) (*JWK, error) {
 		return nil, errors.Errorf("failed to parse did document")
 	}
 
-	num := C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_VERIFICATION_METHOD)
+	num := C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_KEY_AGREEMENT)
 	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_AUTHENTICATION)
-	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_ASSERTION_METHOD)
-	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_KEY_AGREEMENT)
-	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_CAPABILITY_INVOCATION)
-	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_CAPABILITY_DELEGATION)
-	fmt.Println(num)
-
-	num = C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_PUBLIC_KEY)
-	fmt.Println(num)
-
-	vm := C.iotex_diddoc_verification_method_get(ptr, C.VM_PURPOSE_KEY_AGREEMENT, 0)
+	vm := C.iotex_diddoc_verification_method_get(ptr, C.VM_PURPOSE_KEY_AGREEMENT, num-1)
 	if vm == nil {
 		return nil, errors.Errorf("failed to get verificaiton method info")
 	}
