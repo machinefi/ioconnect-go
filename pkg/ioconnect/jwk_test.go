@@ -129,7 +129,7 @@ func TestKeyAgreementJWKFromDIDDoc(t *testing.T) {
             }
           ]
         }`)
-	jwk, err := ioconnect.KeyAgreementJWKFromDIDDoc(doc)
+	jwk, err := ioconnect.JWKFromDIDDoc(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +184,7 @@ func TestDocJWK(t *testing.T) {
                 }]
 }`)
 
-	serverKAJWK, err := ioconnect.KeyAgreementJWKFromDIDDoc(doc)
+	serverKAJWK, err := ioconnect.JWKFromDIDDoc(doc)
 	if err != nil {
 		t.Fatal(err)
 	}

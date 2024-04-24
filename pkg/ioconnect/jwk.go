@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func KeyAgreementJWKFromDIDDoc(content []byte) (*JWK, error) {
+func JWKFromDIDDoc(content []byte) (*JWK, error) {
 	doc := C.iotex_diddoc_parse(C.CString(string(content)))
 	if doc == nil {
 		return nil, errors.Errorf("failed to parse did document")
@@ -24,22 +24,40 @@ func KeyAgreementJWKFromDIDDoc(content []byte) (*JWK, error) {
 		return nil, errors.Errorf("failed to get key agreement info")
 	}
 
-	jwk := &JWK{
+	kajwk := &JWK{
 		dids: make(map[string]string),
 		kids: make(map[string]string),
 		kas:  make(map[string]*JWK),
 		docs: make(map[string]*DIDDoc),
 	}
-	jwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
-	if jwk._ptr == nil {
+	kajwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
+	if kajwk._ptr == nil {
 		return nil, errors.Errorf("failed to get pk_u jwk")
 	}
 
-	if err := jwk.bindKID("io"); err != nil {
+	if err := kajwk.bindKID("io"); err != nil {
 		return nil, err
 	}
 
-	return jwk, nil
+	num = C.iotex_diddoc_verification_method_get_num(doc, C.VM_PURPOSE_AUTHENTICATION)
+	fmt.Println(num)
+	vm = C.iotex_diddoc_verification_method_get(doc, C.VM_PURPOSE_AUTHENTICATION, num-1)
+	if vm == nil {
+		return nil, errors.Errorf("failed to get key agreement info")
+	}
+	masterjwk := &JWK{
+		dids: make(map[string]string),
+		kids: make(map[string]string),
+		kas:  make(map[string]*JWK),
+		docs: make(map[string]*DIDDoc),
+	}
+	masterjwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
+	if kajwk._ptr == nil {
+		return nil, errors.Errorf("failed to get pk_u jwk")
+	}
+
+	masterjwk.kas["io"] = kajwk
+	return masterjwk, nil
 }
 
 func NewJWK(tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType, methods ...string) (*JWK, error) {
