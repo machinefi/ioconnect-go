@@ -358,7 +358,7 @@ func (k *JWK) Encrypt(method string, plain []byte, recipient string) ([]byte, er
 	// for
 	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{C.CString(recipient)}
 
-	c := C.iotex_jwe_json_serialize(data, alg, enc, did, k._ptr, &recipients[0])
+	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0])
 	if c == nil {
 		return nil, errors.Errorf("failed to encrypt data")
 	}
