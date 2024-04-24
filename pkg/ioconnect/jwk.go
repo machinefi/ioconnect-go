@@ -96,7 +96,8 @@ func NewMasterJWK(method ...string) (*JWK, error) {
 	return NewJWK(
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		JwkLifetime_Persistent, // TODO
+		// JwkLifetime_Persistent, // TODO
+		JwkLifetime_Volatile,
 		PsaKeyUsageType_SignHash|PsaKeyUsageType_VerifyHash|PsaKeyUsageType_Export,
 		PsaHashType_SHA_256.PsaAlgorithmECDSA(),
 		method...,
@@ -107,7 +108,8 @@ func NewKeyAgreementJWK(method ...string) (*JWK, error) {
 	return NewJWK(
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		JwkLifetime_Persistent, // ?
+		// JwkLifetime_Persistent, // ?
+		JwkLifetime_Volatile,
 		PsaKeyUsageType_Derive,
 		PsaAlgECDH,
 		method...,
