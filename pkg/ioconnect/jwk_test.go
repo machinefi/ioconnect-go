@@ -77,6 +77,8 @@ func TestNewJWK(t *testing.T) {
 	// cipher, err := client.Encrypt("io", []byte("payload"), server2.KeyAgreementKID("io"))
 
 	// device 1
+	// doc -> jwk == server ka jwk
+	// cipher, err := client.Encrypt("io", []byte("payload"), jwk.KID("io"))
 	cipher, err := client.Encrypt("io", []byte("payload"), server.KeyAgreementKID("io"))
 	if err != nil {
 		t.Fatal(err)
@@ -107,22 +109,22 @@ func TestKeyAgreementJWKFromDIDDoc(t *testing.T) {
             "https://www.w3.org/ns/did/v1",
             "https://w3id.org/security#keyAgreementMethod"
           ],
-          "id": "did:io:0x29a57614d3dd201596898c9e137e5c7f38f23b0a",
+          "id": "did:io:0xf40ffd36bb3672fe8570dbacb458cc3b9c5b80f3",
           "keyAgreement": [
-            "did:io:0xe12017b92096b0737097ce4f41a1641ce0d2de9c#Key-p256-2147483619"
+            "did:io:0xfedfd2594a66ecc582fc005ee8706e72915d7c40#Key-p256-2147483619"
           ],
           "verificationMethod": [
             {
-              "id": "did:io:0xe12017b92096b0737097ce4f41a1641ce0d2de9c#Key-p256-2147483619",
+              "id": "did:io:0xfedfd2594a66ecc582fc005ee8706e72915d7c40#Key-p256-2147483619",
               "type": "JsonWebKey2020",
-              "controller": "did:io:0x29a57614d3dd201596898c9e137e5c7f38f23b0a",
+              "controller": "did:io:0xf40ffd36bb3672fe8570dbacb458cc3b9c5b80f3",
               "publicKeyJwk": {
                 "crv": "P-256",
-                "x": "gpnQitUBlt7_A7--4EIBzn82BITS51RPstCMe2GfH1c",
-                "y": "8lX_FgL5VPuoDfJtvwVTwWHiVF3Q7jaoVlAFISQ_ctI",
+                "x": "LP0gjxxSJgkw4gj2zqEtqTSFD0747Jvmye5HNvqFfc0",
+                "y": "jNojRxyQIB-hRtyT6P95FwJcMAS4NAbOyXBWN3Pmz50",
                 "d": "",
                 "kty": "EC",
-                "kid": "Key-p256-2147483618"
+                "kid": "Key-p256-2147483619"
               }
             }
           ]
@@ -134,4 +136,77 @@ func TestKeyAgreementJWKFromDIDDoc(t *testing.T) {
 
 	t.Log(jwk.DID("io"))
 	t.Log(jwk.KID("io"))
+}
+
+func TestDocJWK(t *testing.T) {
+	// doc from env config as server did doc
+	// doc == server ka jwk
+	// doc := []byte(`{
+	//       "@context": [
+	//         "https://www.w3.org/ns/did/v1",
+	//         "https://w3id.org/security#keyAgreementMethod"
+	//       ],
+	//       "id": "did:io:0xf40ffd36bb3672fe8570dbacb458cc3b9c5b80f3",
+	//       "keyAgreement": [
+	//         "did:io:0xfedfd2594a66ecc582fc005ee8706e72915d7c40#Key-p256-2147483619"
+	//       ],
+	//       "verificationMethod": [
+	//         {
+	//           "id": "did:io:0xfedfd2594a66ecc582fc005ee8706e72915d7c40#Key-p256-2147483619",
+	//           "type": "JsonWebKey2020",
+	//           "controller": "did:io:0xf40ffd36bb3672fe8570dbacb458cc3b9c5b80f3",
+	//           "publicKeyJwk": {
+	//             "crv": "P-256",
+	//             "x": "LP0gjxxSJgkw4gj2zqEtqTSFD0747Jvmye5HNvqFfc0",
+	//             "y": "jNojRxyQIB-hRtyT6P95FwJcMAS4NAbOyXBWN3Pmz50",
+	//             "d": "",
+	//             "kty": "EC",
+	//             "kid": "Key-p256-2147483619"
+	//           }
+	//         }
+	//       ]
+	//     }`)
+	doc := []byte(`{
+        "@context":     ["https://www.w3.org/ns/did/v1", "https://w3id.org/security#keyAgreementMethod"],
+        "id":   "did:io:0xfe4101561ca184d914a14f8b6e37d187fdd7b603",
+        "keyAgreement": ["did:io:0x89f06ca9c73a174f7a55d165d4721008eec86311#Key-p256-2147483619"],
+        "verificationMethod":   [{
+                        "id":   "did:io:0x89f06ca9c73a174f7a55d165d4721008eec86311#Key-p256-2147483619",
+                        "type": "JsonWebKey2020",
+                        "controller":   "did:io:0xfe4101561ca184d914a14f8b6e37d187fdd7b603",
+                        "publicKeyJwk": {
+                                "crv":  "P-256",
+                                "x":    "b0s89g_Vhea4BgSD0RQITl0KHDTaZ0p53-KCxZNp0mU",
+                                "y":    "cf_qciP457RgEOuWF-YElW8zBc6gt9yyIhNzPUmItsU",
+                                "kty":  "EC",
+                                "kid":  "Key-p256-2147483619"
+                        }
+                }]
+}`)
+
+	serverKAJWK, err := ioconnect.KeyAgreementJWKFromDIDDoc(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(serverKAJWK.DID("io")) // ka did
+	t.Log(serverKAJWK.KID("io")) // ka kid
+	t.Log(serverKAJWK.KeyAgreementDID("io"))
+	t.Log(serverKAJWK.KeyAgreementKID("io"))
+
+	clientMasterJWK, err := ioconnect.NewMasterJWK("io")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cipher, err := clientMasterJWK.Encrypt("io", []byte("something"), serverKAJWK.KID("io"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(cipher))
+
+	plain, err := serverKAJWK.DecryptBySenderDID2("io", cipher, clientMasterJWK.DID("io"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(plain))
 }

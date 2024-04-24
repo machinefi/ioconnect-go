@@ -11,17 +11,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-func KeyAgreementJWKFromDIDDoc(doc []byte) (*JWK, error) {
-	ptr := C.iotex_diddoc_parse(C.CString(string(doc)))
-	if ptr == nil {
+func KeyAgreementJWKFromDIDDoc(content []byte) (*JWK, error) {
+	doc := C.iotex_diddoc_parse(C.CString(string(content)))
+	if doc == nil {
 		return nil, errors.Errorf("failed to parse did document")
 	}
 
-	num := C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_KEY_AGREEMENT)
+	num := C.iotex_diddoc_verification_method_get_num(doc, C.VM_PURPOSE_KEY_AGREEMENT)
 	fmt.Println(num)
-	vm := C.iotex_diddoc_verification_method_get(ptr, C.VM_PURPOSE_KEY_AGREEMENT, num-1)
+	vm := C.iotex_diddoc_verification_method_get(doc, C.VM_PURPOSE_KEY_AGREEMENT, num-1)
 	if vm == nil {
-		return nil, errors.Errorf("failed to get verificaiton method info")
+		return nil, errors.Errorf("failed to get key agreement info")
 	}
 
 	jwk := &JWK{
@@ -30,13 +30,15 @@ func KeyAgreementJWKFromDIDDoc(doc []byte) (*JWK, error) {
 		kas:  make(map[string]*JWK),
 		docs: make(map[string]*DIDDoc),
 	}
-	jwk._ptr = (*C.JWK)(unsafe.Pointer(&vm.pk_u))
+	jwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
 	if jwk._ptr == nil {
 		return nil, errors.Errorf("failed to get pk_u jwk")
 	}
+
 	if err := jwk.bindKID("io"); err != nil {
 		return nil, err
 	}
+
 	return jwk, nil
 }
 
@@ -231,16 +233,16 @@ func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 		return nil, errors.Errorf("failed to create key agreement jwk")
 	}
 
-	ec, ok := k.Param().(*EC)
+	ec, ok := ka.Param().(*EC)
 	if !ok {
 		return nil, errors.Errorf("unsupported jwk parameter")
 	}
 
 	kid := ""
 	if ec.Crv() == JwkSupportKeyAlg_P256.String() {
-		kid = fmt.Sprintf("Key-p256-%d", k.id)
+		kid = fmt.Sprintf("Key-p256-%d", ka.id)
 	} else {
-		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), k.id)
+		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), ka.id)
 	}
 
 	doc := &DIDDoc{
@@ -258,7 +260,7 @@ func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 				Crv: ec.Crv(),
 				X:   ec.X(),
 				Y:   ec.Y(),
-				Kty: k.Type().String(),
+				Kty: ka.Type().String(),
 				Kid: kid,
 			},
 		}},
@@ -342,6 +344,21 @@ func (k *JWK) DecryptBySenderDID(method string, cipher []byte, sender string) ([
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(sender) // sender
 	recipient := C.CString(k.KeyAgreementKID(method))
+
+	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
+	if c == nil {
+		return nil, errors.Errorf("failed to decrypt data by sender did")
+	}
+	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
+}
+
+func (k *JWK) DecryptBySenderDID2(method string, cipher []byte, sender string) ([]byte, error) {
+	data := (*C.char)(C.CBytes(cipher))
+	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	did := C.CString(sender) // sender
+	recipient := C.CString(k.KID(method))
+	fmt.Println(k.KID(method))
 
 	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
 	if c == nil {
