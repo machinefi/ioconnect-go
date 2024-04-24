@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/machinefi/ioconnect-go/cmd/srv-did-vc/apis"
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 	"net/http"
 )
@@ -25,16 +26,8 @@ type Server struct {
 	jwk *ioconnect.JWK
 }
 
-type IssueTokenReq struct {
-	ClientID string `json:"clientID"`
-}
-
-type IssueTokenRsp struct {
-	Token string `json:"token"`
-}
-
 func (s *Server) IssueToken(c *gin.Context) {
-	req := &IssueTokenReq{}
+	req := &apis.IssueTokenReq{}
 
 	if err := c.BindJSON(req); err != nil {
 		c.String(http.StatusBadRequest, "failed to bind request: %v", err)
@@ -46,16 +39,12 @@ func (s *Server) IssueToken(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "failed to sign token: %v", err)
 		return
 	}
-	c.JSON(http.StatusOK, &IssueTokenRsp{Token: token})
+	c.JSON(http.StatusOK, &apis.IssueTokenRsp{Token: token})
 	return
 }
 
-type VerifyTokenReq = IssueTokenRsp
-
-type VerifyTokenRsp = IssueTokenReq
-
 func (s *Server) VerifyToken(c *gin.Context) {
-	req := &VerifyTokenReq{}
+	req := &apis.VerifyTokenReq{}
 
 	if err := c.BindJSON(req); err != nil {
 		c.String(http.StatusBadRequest, "failed to bind request: %v", err)
@@ -67,6 +56,6 @@ func (s *Server) VerifyToken(c *gin.Context) {
 		c.String(http.StatusInternalServerError, "failed to verify token: %v", err)
 		return
 	}
-	c.JSON(http.StatusOK, &VerifyTokenRsp{ClientID: clientID})
+	c.JSON(http.StatusOK, &apis.VerifyTokenRsp{ClientID: clientID})
 	return
 }
