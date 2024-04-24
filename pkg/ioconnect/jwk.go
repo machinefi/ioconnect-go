@@ -11,24 +11,44 @@ import (
 	"github.com/pkg/errors"
 )
 
-// TODO generate JWK from DID doc
 func KeyAgreementJWKFromDIDDoc(doc []byte) (*JWK, error) {
 	ptr := C.iotex_diddoc_parse(C.CString(string(doc)))
 	if ptr == nil {
 		return nil, errors.Errorf("failed to parse did document")
 	}
 
-	num := C.iotex_diddoc_verification_method_get_num(ptr, C.VM_PURPOSE_VERIFICATION_METHOD)
+	purpose := C.VM_PURPOSE_VERIFICATION_METHOD
+	num := C.iotex_diddoc_verification_method_get_num(ptr, purpose)
 	fmt.Println(num)
-	vm := C.iotex_diddoc_verification_method_get(ptr, C.VM_PURPOSE_VERIFICATION_METHOD, num)
+
+	purpose = C.VM_PURPOSE_AUTHENTICATION
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	purpose = C.VM_PURPOSE_ASSERTION_METHOD
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	purpose = C.VM_PURPOSE_KEY_AGREEMENT
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	purpose = C.VM_PURPOSE_CAPABILITY_INVOCATION
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	purpose = C.VM_PURPOSE_CAPABILITY_DELEGATION
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	purpose = C.VM_PURPOSE_PUBLIC_KEY
+	num = C.iotex_diddoc_verification_method_get_num(ptr, purpose)
+	fmt.Println(num)
+
+	vm := C.iotex_diddoc_verification_method_get(ptr, purpose, 0)
 	if vm == nil {
 		return nil, errors.Errorf("failed to get verificaiton method info")
 	}
-	// ec := *(*C.ECParams)(unsafe.Pointer(&k._ptr.Params))
-	// fmt.Printf("ec.crv:                  %v %T\n", ec.crv, ec.crv)
-	// fmt.Printf("ec.x_coordinate:         %v %T\n", ec.x_coordinate, ec.x_coordinate)
-	// fmt.Printf("ec.y_coordinate:         %v %T\n", ec.y_coordinate, ec.y_coordinate)
-	// fmt.Printf("ec.ecc_private_key:      %v %T\n", ec.ecc_private_key, ec.ecc_private_key)
 
 	jwk := &JWK{
 		dids: make(map[string]string),
