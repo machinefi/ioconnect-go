@@ -228,7 +228,17 @@ func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
 }
 
 func (k *JWK) SignToken(method string, subject *JWK) (string, error) {
-	vc := NewVerifiableCredential(method, k, subject)
+	return k.SignTokenBySubject(subject.DID(method))
+}
+
+func (k *JWK) SignTokenBySubject(subject string) (string, error) {
+	issuer := k.DID("io")
+	vc := NewVerifiableCredentialByIssuerAndSubjectDIDs(issuer, subject)
+	return k.SignTokenByVC(vc)
+}
+
+func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
+	issuer := k.DID("io")
 	data, err := json.Marshal(vc)
 	if err != nil {
 		return "", err
@@ -237,7 +247,7 @@ func (k *JWK) SignToken(method string, subject *JWK) (string, error) {
 	handle := C.iotex_jwt_claim_new()
 	object := C.cJSON_Parse(C.CString(string(data)))
 
-	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(C.CString(k.DID(method))))
+	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(C.CString(issuer)))
 	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_PRIVATE_JSON, C.CString("vp"), unsafe.Pointer(object))
 
 	token := C.iotex_jwt_serialize(handle, C.JWT_TYPE_JWS, C.ES256, k._ptr)

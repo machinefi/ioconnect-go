@@ -34,6 +34,10 @@ type Controller struct {
 }
 
 func NewVerifiableCredential(method string, issuer, subject *JWK) *VerifiableCredential {
+	return NewVerifiableCredentialByIssuerAndSubjectDIDs(issuer.DID(method), subject.DID(method))
+}
+
+func NewVerifiableCredentialByIssuerAndSubjectDIDs(issuer, subject string) *VerifiableCredential {
 	return &VerifiableCredential{
 		Contexts: []string{
 			"https://www.w3.org/2018/credentials/v1",
@@ -41,8 +45,8 @@ func NewVerifiableCredential(method string, issuer, subject *JWK) *VerifiableCre
 		},
 		ID:                "http://example.org/credentials/3731",
 		Type:              []string{"VerifiableCredential"},
-		CredentialSubject: []Controller{{ID: subject.DID(method)}},
-		Issuer:            Controller{ID: issuer.DID(method)},
+		CredentialSubject: []Controller{{ID: subject}},
+		Issuer:            Controller{ID: issuer},
 		IssuanceDate:      time.Now().Format(time.RFC3339),
 	}
 }
