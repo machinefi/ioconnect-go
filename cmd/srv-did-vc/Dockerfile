@@ -3,14 +3,13 @@ FROM golang:1.22 AS builder
 WORKDIR /go/src
 COPY ./ ./
 
-RUN cd ./cmd/srv-applet-mgr && make build
+RUN cd ./cmd/srv-did-vc && make build
 
 # runtime
 FROM scratch AS runtime
 
-COPY --from=builder /go/src/build/srv-applet-mgr/srv-applet-mgr /go/bin/srv-applet-mgr
-COPY --from=builder /go/src/build/srv-applet-mgr/openapi.json /go/bin/openapi.json
+COPY --from=builder /go/src/cmd/srv-did-vc/srv-did-vc /go/bin/srv-did-vc
 EXPOSE 9999
 
 WORKDIR /go/bin
-ENTRYPOINT ["/go/bin/srv-applet-mgr"]
+ENTRYPOINT ["/go/bin/srv-did-vc"]

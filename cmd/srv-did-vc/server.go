@@ -17,6 +17,7 @@ func RunServer(port int, doc []byte) error {
 	eng := gin.New()
 	eng.Handle(http.MethodPost, "issue", s.IssueToken)
 	eng.Handle(http.MethodGet, "verify", s.VerifyToken)
+	eng.Handle(http.MethodGet, "version", s.Version)
 
 	s.eng = eng
 
@@ -83,4 +84,8 @@ func (s *Server) VerifyToken(c *gin.Context) {
 
 	c.JSON(http.StatusOK, &apis.VerifyTokenRsp{ClientID: clientID})
 	return
+}
+
+func (s *Server) Version(c *gin.Context) {
+	c.String(http.StatusOK, fmt.Sprintf("version: %s", BuildVersion))
 }
