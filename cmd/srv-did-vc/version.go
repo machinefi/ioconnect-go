@@ -1,7 +1,8 @@
-package apis
+package main
 
 import (
 	"fmt"
+
 	"github.com/fatih/color"
 )
 

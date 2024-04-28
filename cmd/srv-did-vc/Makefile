@@ -1,8 +1,8 @@
 VERSION=$(shell git describe --tags --always)
 FEATURE=$(shell git branch | grep '*' | awk '{ print $$2; }')
 BUILD_TIME=$(shell date +%Y%m%d%H%M%S)
-VERSION_PATH=github.com/machinefi/ioconnect/cmd/srv-did-vc/apis
-#VERSION_PATH=main
+#VERSION_PATH=github.com/machinefi/ioconnect/cmd/srv-did-vc/apis
+VERSION_PATH=main
 TARGET=srv-did-vc
 REPO_ROOT=../..
 
@@ -14,12 +14,13 @@ debug:
 
 .PHONY: build
 build:
-	CGO_LDFLAGS='-L../../pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go build -ldflags \
-	"-X ${VERSION_PATH}.Name=${TARGET} \
-	-X ${VERSION_PATH}.Feature=${FEATURE} \
-	-X ${VERSION_PATH}.Timestamp=${BUILD_TIME} \
-	-X ${VERSION_PATH}.Version=${VERSION}" -o ${TARGET}
-
+	@CGO_LDFLAGS='-L../../pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go build \
+	-ldflags "                                                                    \
+	-X '${VERSION_PATH}.Name=${TARGET}'                                           \
+	-X '${VERSION_PATH}.Feature=${FEATURE}'                                       \
+	-X '${VERSION_PATH}.Timestamp=${BUILD_TIME}'                                  \
+	-X '${VERSION_PATH}.Version=${VERSION}' "                                     \
+	-o ${TARGET} 
 
 .PHONY: run
 run: build

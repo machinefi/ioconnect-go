@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/machinefi/ioconnect-go/cmd/srv-did-vc/apis"
-	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 	"log/slog"
 	"net/http"
 	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/machinefi/ioconnect-go/cmd/srv-did-vc/apis"
+	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 )
 
 func RunServer(port int, doc []byte) error {
@@ -87,5 +88,5 @@ func (s *Server) VerifyToken(c *gin.Context) {
 }
 
 func (s *Server) Version(c *gin.Context) {
-	c.String(http.StatusOK, fmt.Sprintf("version: %s", apis.BuildVersion))
+	c.String(http.StatusOK, fmt.Sprintf("version: %s", BuildVersion))
 }
