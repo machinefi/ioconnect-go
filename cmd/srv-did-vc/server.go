@@ -17,7 +17,7 @@ func RunServer(port int, doc []byte) error {
 
 	eng := gin.New()
 	eng.Handle(http.MethodPost, "issue", s.IssueToken)
-	eng.Handle(http.MethodGet, "verify", s.VerifyToken)
+	eng.Handle(http.MethodPost, "verify", s.VerifyToken)
 	eng.Handle(http.MethodGet, "version", s.Version)
 
 	s.eng = eng

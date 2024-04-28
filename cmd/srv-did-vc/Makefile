@@ -1,7 +1,6 @@
 VERSION=$(shell git describe --tags --always)
 FEATURE=$(shell git branch | grep '*' | awk '{ print $$2; }')
-BUILD_TIME=$(shell date +%Y%m%d%H%M%S)
-#VERSION_PATH=github.com/machinefi/ioconnect/cmd/srv-did-vc/apis
+BUILD_TIME=$(shell TZ=Asia/Shanghai date +%Y-%m-%dT%H:%M:%S+08:00)
 VERSION_PATH=main
 TARGET=srv-did-vc
 REPO_ROOT=../..
@@ -12,15 +11,33 @@ debug:
 	@echo ${VERSION}
 	@echo ${BUILD_TIME}
 
-.PHONY: build
-build:
-	@CGO_LDFLAGS='-L../../pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go build \
-	-ldflags "                                                                    \
-	-X '${VERSION_PATH}.Name=${TARGET}'                                           \
-	-X '${VERSION_PATH}.Feature=${FEATURE}'                                       \
-	-X '${VERSION_PATH}.Timestamp=${BUILD_TIME}'                                  \
-	-X '${VERSION_PATH}.Version=${VERSION}' "                                     \
-	-o ${TARGET} 
+.PHONY: build_static
+build_static:
+	@CGO_ENABLED=1 CGO_LDFLAGS='-L../../pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go build \
+	-ldflags "-s -w -extldflags '-static'        \
+	-X '${VERSION_PATH}.Name=${TARGET}'          \
+	-X '${VERSION_PATH}.Feature=${FEATURE}'      \
+	-X '${VERSION_PATH}.Timestamp=${BUILD_TIME}' \
+	-X '${VERSION_PATH}.Version=${VERSION}' "    \
+	-o ${TARGET}_static
+
+.PHONE: build_shared
+build_shared:
+	@CGO_ENABLED=1 CGO_LDFLAGS='-L../../pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go build \
+	-ldflags "-s -w                              \
+	-X '${VERSION_PATH}.Name=${TARGET}'          \
+	-X '${VERSION_PATH}.Feature=${FEATURE}'      \
+	-X '${VERSION_PATH}.Timestamp=${BUILD_TIME}' \
+	-X '${VERSION_PATH}.Version=${VERSION}' "    \
+	-o ${TARGET}_shared
+
+.PHONE: build
+build: build_static
+	@mv ${TARGET}_static ${TARGET}
+
+.PHONY: image
+image:
+	@cd ${REPO_ROOT} && docker build -f cmd/srv-did-vc/Dockerfile . -t $(USER)/srv-did-vc:${VERSION}
 
 .PHONY: run
 run: build
@@ -28,4 +45,4 @@ run: build
 
 .PHONY: clean
 clean:
-	@rm -rf ${TARGET}
+	@rm -rf ${TARGET}*
