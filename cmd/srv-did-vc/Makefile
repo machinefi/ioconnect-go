@@ -1,7 +1,7 @@
 VERSION=$(shell git describe --tags --always)
 FEATURE=$(shell git branch | grep '*' | awk '{ print $$2; }')
 BUILD_TIME=$(shell date +%Y%m%d%H%M%S)
-VERSION_PATH=github.com/machinefi/ioconnect/cmd
+VERSION_PATH=github.com/machinefi/ioconnect/cmd/srv-did-vc/apis
 #VERSION_PATH=main
 TARGET=srv-did-vc
 REPO_ROOT=../..
