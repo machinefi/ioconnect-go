@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/machinefi/ioconnect-go/cmd"
 	"github.com/machinefi/ioconnect-go/cmd/srv-did-vc/apis"
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 	"log/slog"
@@ -87,5 +88,5 @@ func (s *Server) VerifyToken(c *gin.Context) {
 }
 
 func (s *Server) Version(c *gin.Context) {
-	c.String(http.StatusOK, fmt.Sprintf("version: %s", BuildVersion))
+	c.String(http.StatusOK, fmt.Sprintf("version: %s", cmd.BuildVersion))
 }

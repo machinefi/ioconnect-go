@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -10,14 +10,13 @@ var (
 	Feature   string
 	Version   string
 	Timestamp string
-	Group     string
 
 	BuildVersion string
 )
 
 func init() {
 	if Name == "" {
-		Name = "srv-"
+		Name = "srv-did-vc"
 	}
 	if Feature == "" {
 		Feature = "unknown"
@@ -27,9 +26,6 @@ func init() {
 	}
 	if Timestamp == "" {
 		Timestamp = "unknown"
-	}
-	if Group == "" {
-		Group = "srv-did-vc"
 	}
 
 	BuildVersion = fmt.Sprintf("%s@%s_%s", Feature, Version, Timestamp)
