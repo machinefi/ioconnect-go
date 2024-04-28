@@ -5,3 +5,7 @@ build:
 .PHONY: run
 run: build
 	@./srv-did-vc
+
+.PHONY: clean
+clean:
+	@rm -rf srv-did-vc
