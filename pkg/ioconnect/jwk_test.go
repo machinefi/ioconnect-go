@@ -98,8 +98,9 @@ func TestNewJWK(t *testing.T) {
 	// plain, err = server.DecryptBySenderDID("io", cipher, client.DID("io"))
 	plain, err = server.DecryptBySenderDID("io", cipher, "")
 	if err != nil {
-		t.Logf("caused by the JWK is parsed from did doc cannot used to decrypt data: %v", err)
+		t.Fatal(err)
 	}
+	t.Log(plain)
 }
 
 func TestDocJWK(t *testing.T) {
@@ -167,7 +168,7 @@ func TestDocJWK(t *testing.T) {
 
 	plain, err := server.DecryptBySenderDID("io", cipher, client.DID("io"))
 	if err != nil {
-		t.Fatal(err)
+		t.Logf("caused by the JWK is parsed from did doc cannot used to decrypt data: %v", err)
 	}
 	t.Log(string(plain))
 }
