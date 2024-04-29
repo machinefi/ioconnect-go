@@ -374,10 +374,10 @@ func (k *JWK) Encrypt(method string, plain []byte, recipient string) ([]byte, er
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(k.DID(method)) // sender
 	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{C.CString(recipient)}
-	// format := *(*C._Bool)(unsafe.Pointer(new(int)))
+	format := *(*C._Bool)(unsafe.Pointer(new(int)))
 
-	// c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0], format)
-	c := C.iotex_jwe_json_serialize(data, alg, enc, did, k._ptr, &recipients[0])
+	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0], format)
+	// c := C.iotex_jwe_json_serialize(data, alg, enc, did, k._ptr, &recipients[0])
 	if c == nil {
 		return nil, errors.Errorf("failed to encrypt data")
 	}
