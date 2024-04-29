@@ -409,6 +409,9 @@ func (k *JWK) DecryptBySenderDID(method string, cipher []byte, sender string) ([
 	if c == nil {
 		return nil, errors.Errorf("failed to decrypt data by sender did")
 	}
+	if *(*int)(unsafe.Pointer(c)) == 0x01 {
+		return nil, errors.Errorf("invalid C pointer")
+	}
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
 
