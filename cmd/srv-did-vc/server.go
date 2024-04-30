@@ -15,10 +15,10 @@ func RunServer(port int, doc []byte) error {
 	// TODO parse doc from env
 	s := &Server{}
 
-	eng := gin.New()
-	eng.Handle(http.MethodPost, "issue", s.IssueToken)
-	eng.Handle(http.MethodPost, "verify", s.VerifyToken)
-	eng.Handle(http.MethodGet, "version", s.Version)
+	eng := gin.Default()
+	eng.POST("issue", s.IssueToken)
+	eng.POST("verify", s.VerifyToken)
+	eng.GET("version", s.Version)
 
 	s.eng = eng
 
