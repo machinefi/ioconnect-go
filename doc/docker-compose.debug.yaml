@@ -1,0 +1,111 @@
+version: "3.6"
+
+services:
+  sequencer:
+    #build:
+    #  dockerfile: ./sequencer.Dockerfile
+    image: ghcr.io/machinefi/sequencer:latest
+    depends_on:
+      - "postgres"
+      - "coordinator"
+    container_name: w3bstream-sequencer
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "9000:9000"
+    command: [ "-coordinatorAddress", "coordinator:9001", "-databaseDSN", "postgres://test_user:test_passwd@postgres:5432/test?sslmode=disable" ]
+
+  coordinator:
+    #build:
+    #  dockerfile: ./coordinator.Dockerfile
+    image: ghcr.io/machinefi/coordinator:latest
+    depends_on:
+      - "postgres"
+    container_name: w3bstream-coordinator
+    platform: linux/x86_64
+    restart: always
+    ports:
+      - "9001:9001"
+    environment:
+      COORDINATOR_ENV: PROD
+      PROJECT_FILE_DIRECTORY: "/data"
+      OPERATOR_PRIVATE_KEY: ${PRIVATE_KEY:-}
+      OPERATOR_PRIVATE_KEY_ED25519: ${PRIVATE_KEY_ED25519:-}
+    volumes:
+      - ./test/container_model:/data
+
+  prover:
+    #build:
+    #  dockerfile: ./prover.Dockerfile
+    image: ghcr.io/machinefi/prover:latest
+    depends_on:
+      - "risc0"
+      - "halo2"
+      - "zkwasm"
+      - "wasm"
+      - "postgres"
+    container_name: w3bstream-prover
+    platform: linux/x86_64
+    restart: always
+    environment:
+      PROVER_ENV: PROD
+      PROJECT_FILE_DIRECTORY: "/data"
+    volumes:
+      - ./test/container_model:/data
+
+  halo2:
+    image: wangweixiaohao2944/halo2server:v0.0.6
+    container_name: halo2-service
+    platform: linux/x86_64
+    restart: always
+
+  zkwasm:
+    image: iotexdev/zkwasmserver:v0.0.3
+    container_name: zkwasm-service
+    platform: linux/x86_64
+    restart: always
+
+  risc0:
+    image: wangweixiaohao2944/risc0server:v1.0.0.rc4
+    depends_on:
+      - "postgres"
+    container_name: risc0-service
+    platform: linux/x86_64
+    restart: always
+    environment:
+      DATABASE_URL: postgres://test_user:test_passwd@postgres:5432/test?sslmode=disable
+      BONSAI_URL: https://api.bonsai.xyz
+      BONSAI_KEY: "${BONSAI_KEY:-}"
+
+  wasm:
+    image: wangweixiaohao2944/wasmserver:v0.0.1.rc0
+    container_name: wasm-service
+    platform: linux/x86_64
+    restart: always
+
+  postgres:
+    image: postgres:14
+    container_name: w3bstream-sprout-postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    command:
+      [
+        "postgres",
+        "-cshared_preload_libraries=pg_stat_statements",
+        "-cstats_temp_directory=/tmp"
+      ]
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_passwd
+      POSTGRES_DB: test
+    volumes:
+      - ./build/postgres:/var/lib/postgresql/data
+
+  srv-did-vc:
+    image: ghcr.io/machinefi/ioconnect-go:latest
+    platform: linux/amd64
+    container_name: srv-did-vc
+    restart: always
+    ports:
+      - "9999:9999"
