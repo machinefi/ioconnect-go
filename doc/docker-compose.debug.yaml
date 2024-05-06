@@ -4,7 +4,7 @@ services:
   sequencer:
     #build:
     #  dockerfile: ./sequencer.Dockerfile
-    image: ghcr.io/machinefi/sequencer:latest
+    image: ghcr.io/machinefi/sequencer:v0.10.1-rc2
     depends_on:
       - "postgres"
       - "coordinator"
@@ -18,7 +18,7 @@ services:
   coordinator:
     #build:
     #  dockerfile: ./coordinator.Dockerfile
-    image: ghcr.io/machinefi/coordinator:latest
+    image: ghcr.io/machinefi/coordinator:v0.10.1-rc2
     depends_on:
       - "postgres"
     container_name: w3bstream-coordinator
@@ -37,7 +37,7 @@ services:
   prover:
     #build:
     #  dockerfile: ./prover.Dockerfile
-    image: ghcr.io/machinefi/prover:latest
+    image: ghcr.io/machinefi/prover:v0.10.1-rc2
     depends_on:
       - "risc0"
       - "halo2"
