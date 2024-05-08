@@ -1,4 +1,6 @@
 ## build all targets to ./build/
+MOD=$(shell cat go.mod | grep ^module -m 1 | awk '{ print $$2; }' || '')
+
 .PHONY: targets
 targets:
 	@cd cmd && for target in * ; \
@@ -28,3 +30,18 @@ images:
 		fi; \
 		echo "\033[32mdone!\033[0m\n"; \
 	done
+
+.PHONY: fmt
+fmt:
+	@if [ -z $$MOD ]; then \
+		goimports -w . ; \
+	else \
+		goimports -w -local "${MOD}" . ; \
+	fi
+
+.PHONY: test
+test:
+	@CGO_LDFLAGS='-L./pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go test ./... -v -covermode=atomic -coverprofile cover.out
+
+
+

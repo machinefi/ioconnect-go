@@ -4,10 +4,8 @@ package ioconnect
 //#include <ioconnect.h>
 import "C"
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -23,12 +21,8 @@ func NewJWKFromDoc(content []byte) (*JWK, error) {
 	return doc.ParseJWK()
 }
 
-func newJWKBySecret(secret [4]uint64, tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType) (*JWK, error) {
-	_secret := make([]byte, 32)
-	for i := 0; i < 4; i++ {
-		binary.LittleEndian.PutUint64(_secret, secret[i])
-	}
-	c_secret := (*C.uint8_t)(C.CBytes(_secret))
+func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType) (*JWK, error) {
+	c_secret := (*C.uint8_t)(C.CBytes(secret.Bytes()))
 	defer C.free(unsafe.Pointer(c_secret))
 
 	k := &JWK{}
@@ -53,9 +47,9 @@ func newJWKBySecret(secret [4]uint64, tpe JwkType, keyAlg JwkSupportKeyAlg, life
 	return k, nil
 }
 
-func NewJWKBySecret(secret [2][4]uint64) (*JWK, error) {
+func NewJWKBySecret(secrets JWKSecrets) (*JWK, error) {
 	k, err := newJWKBySecret(
-		secret[0],
+		secrets[0],
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
 		JwkLifetime_Volatile,
@@ -67,7 +61,7 @@ func NewJWKBySecret(secret [2][4]uint64) (*JWK, error) {
 	}
 
 	ka, err := newJWKBySecret(
-		secret[1],
+		secrets[1],
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
 		JwkLifetime_Volatile,
@@ -78,7 +72,7 @@ func NewJWKBySecret(secret [2][4]uint64) (*JWK, error) {
 		return nil, errors.Wrap(err, "failed to generate key agreement key")
 	}
 	k.ka = ka
-	k.secret = secret
+	k.secrets = secrets
 
 	if err = k.register(); err != nil {
 		return nil, err
@@ -89,15 +83,9 @@ func NewJWKBySecret(secret [2][4]uint64) (*JWK, error) {
 }
 
 func NewJWK() (*JWK, error) {
-	secret := [2][4]uint64{}
+	secrets := NewJWKSecrets()
 
-	for i := 0; i < 2; i++ {
-		for j := 0; j < 4; j++ {
-			secret[i][j] = rand.Uint64()
-		}
-	}
-
-	return NewJWKBySecret(secret)
+	return NewJWKBySecret(secrets)
 }
 
 type JWK struct {
@@ -109,7 +97,7 @@ type JWK struct {
 	ka   *JWK
 	doc  *Doc
 
-	secret [2][4]uint64
+	secrets JWKSecrets
 }
 
 // register bind kid and JWK
@@ -227,10 +215,6 @@ func (k *JWK) DID() string { return k.did }
 
 func (k *JWK) KID() string { return k.kid }
 
-func (k *JWK) KeyAgreement() *JWK {
-	return k.ka
-}
-
 func (k *JWK) KeyAgreementDID() string {
 	return k.ka.DID()
 }
@@ -285,6 +269,8 @@ func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	c_data := C.CString(string(data))
+	defer C.free(unsafe.Pointer(c_data))
 
 	handle := C.iotex_jwt_claim_new()
 	if handle == nil {
@@ -292,12 +278,13 @@ func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
 	}
 	defer C.iotex_jwt_claim_destroy(handle)
 
-	object := C.cJSON_Parse(C.CString(string(data)))
+	object := C.cJSON_Parse(c_data)
 	if object == nil {
 		return "", errors.Errorf("failed to call C.cJSON_Parse, nil returned")
 	}
-	// TODO this invoke triggers segment fault if c-language need release this memory?
-	// C.cJSON_Delete(object)
+	// TODO this C.free invoke triggers double free fault if c-language hold this memory?
+	// TODO ownership not transferred, go should release object
+	// defer C.cJSON_Delete(object)
 
 	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(c_issuer))
 
@@ -348,6 +335,7 @@ func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(k.DID()) // sender
+	defer C.free(unsafe.Pointer(did))
 
 	c_recipient := C.CString(recipient)
 	defer C.free(unsafe.Pointer(c_recipient))
@@ -364,22 +352,7 @@ func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
 }
 
 func (k *JWK) Decrypt(cipher []byte, sender *JWK) ([]byte, error) {
-	data := (*C.char)(C.CBytes(cipher))
-	defer C.free(unsafe.Pointer(data))
-
-	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
-	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(sender.DID()) // sender
-
-	recipient := C.CString(k.KeyAgreementKID())
-	defer C.free(unsafe.Pointer(recipient))
-
-	c := C.iotex_jwe_decrypt(data, alg, enc, did, sender._ptr, recipient)
-	if c == nil {
-		return nil, errors.Errorf("failed to decrypt data")
-	}
-	defer C.free(unsafe.Pointer(c))
-	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
+	return k.DecryptBySenderDID(cipher, sender.DID())
 }
 
 func (k *JWK) DecryptBySenderDID(cipher []byte, sender string) ([]byte, error) {
@@ -389,6 +362,7 @@ func (k *JWK) DecryptBySenderDID(cipher []byte, sender string) ([]byte, error) {
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(sender) // sender
+	defer C.free(unsafe.Pointer(did))
 
 	recipient := C.CString(k.KeyAgreementKID())
 	defer C.free(unsafe.Pointer(recipient))
@@ -399,11 +373,12 @@ func (k *JWK) DecryptBySenderDID(cipher []byte, sender string) ([]byte, error) {
 	}
 	defer C.free(unsafe.Pointer(c))
 
-	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
+	plain := C.GoString(c)
+	return []byte(plain), nil
 }
 
-func (k *JWK) Export() [2][4]uint64 {
-	return k.secret
+func (k *JWK) Export() JWKSecrets {
+	return k.secrets
 }
 
 func (k *JWK) Destroy() {
@@ -414,5 +389,9 @@ func (k *JWK) Destroy() {
 	if k.ka._ptr != nil {
 		C.iotex_jwk_destroy(k.ka._ptr)
 		k.ka._ptr = nil
+
+		kid := C.CString(k.ka.KID())
+		defer C.free(unsafe.Pointer(kid))
+		C.iotex_registry_item_unregister(kid)
 	}
 }

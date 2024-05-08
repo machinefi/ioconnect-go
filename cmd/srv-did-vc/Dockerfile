@@ -1,9 +1,16 @@
 FROM --platform=linux/amd64 golang:1.22 AS builder
 
 WORKDIR /go/src
-COPY ./ ./
+
+COPY go.mod go.mod
+COPY go.sum go.sum
+
+RUN GO111MODULE=on go mod download
+
+COPY . .
 
 RUN cd ./cmd/srv-did-vc && make build
+
 
 # runtime
 FROM --platform=linux/amd64 scratch AS runtime

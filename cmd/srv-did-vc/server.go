@@ -7,11 +7,12 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/machinefi/ioconnect-go/cmd/srv-did-vc/apis"
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 )
 
-func RunServer(port int, doc []byte) error {
+func RunServer(port int, secrets ioconnect.JWKSecrets) error {
 	// TODO parse doc from env
 	s := &Server{}
 
@@ -22,16 +23,18 @@ func RunServer(port int, doc []byte) error {
 
 	s.eng = eng
 
-	key, err := ioconnect.NewMasterJWK("io")
+	key, err := ioconnect.NewJWKBySecret(secrets)
 	if err != nil {
 		panic(err)
 	}
 	s.jwk = key
-
-	slog.Info("server did:io       ", s.jwk.DID("io"))
-	slog.Info("server did:io#key   ", s.jwk.KID("io"))
-	slog.Info("server ka did:io    ", s.jwk.DID("io"))
-	slog.Info("server ka did:io#key", s.jwk.KID("io"))
+	slog.Debug("jwk generated",
+		"did:io", key.DID(),
+		"did:io#key", key.KID(),
+		"ka did:io", key.KeyAgreementDID(),
+		"ka did:io#key", key.KeyAgreementKID(),
+		"doc", key.Doc(),
+	)
 
 	return eng.Run(fmt.Sprintf(":%d", port))
 }
@@ -50,7 +53,7 @@ func (s *Server) IssueToken(c *gin.Context) {
 		return
 	}
 
-	token, err := s.jwk.SignTokenBySubject(req.ClientID)
+	token, err := s.jwk.SignToken(req.ClientID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "failed to sign token: %v", err)
 		return
