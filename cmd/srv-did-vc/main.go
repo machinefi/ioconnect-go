@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 	"os"
 
@@ -28,15 +27,14 @@ func init() {
 	v := os.Getenv(k)
 
 	if v != "" {
-		log.Printf("secret from env: %s", v)
+		slog.Info("jwk secrets loaded from secret")
 		if err := config.JWKSecrets.UnmarshalText([]byte(v)); err != nil {
-			panic(errors.Errorf("invalid jwk secrets from evn: %s", v))
+			panic(errors.Errorf("invalid jwk secrets from env: %s", v))
 		}
 		return
 	}
-
+	slog.Info("volatile jwk secrets generated")
 	config.JWKSecrets = ioconnect.NewJWKSecrets()
-	log.Printf("volatile secret: %s", config.JWKSecrets.String())
 }
 
 func main() {
