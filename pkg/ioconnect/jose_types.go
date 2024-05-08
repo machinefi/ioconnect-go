@@ -153,9 +153,6 @@ func (v PsaHashType) PsaAlgorithmECDSA() PsaHashType {
 	return PsaHashType(C.PSA_ALG_ECDSA_BASE | v.CConst()&C.PSA_ALG_HASH_MASK)
 }
 
-type PsaAlgType uint32
-
-/*
 type Bool int
 
 const (
@@ -164,6 +161,39 @@ const (
 )
 
 func (b Bool) CConst() C._Bool {
-	return nil
+	return *(*C._Bool)(unsafe.Pointer(&b))
 }
-*/
+
+type VerificationMethodPurpose uint32
+
+const (
+	VerificationMethodPurpose_VerificationMethod VerificationMethodPurpose = iota + 0
+	VerificationMethodPurpose_Authentication
+	VerificationMethodPurpose_AssertionMethod
+	VerificationMethodPurpose_KeyAgreement
+	VerificationMethodPurpose_CapabilityInvocation
+	VerificationMethodPurpose_CapabilityDelegation
+	VerificationMethodPurpose_PublicKey
+)
+
+func (v VerificationMethodPurpose) CEnum() C.enum_VerificationMethod_Purpose {
+	switch v {
+	case VerificationMethodPurpose_VerificationMethod:
+		return C.VM_PURPOSE_VERIFICATION_METHOD
+	case VerificationMethodPurpose_Authentication:
+		return C.VM_PURPOSE_AUTHENTICATION
+	case VerificationMethodPurpose_AssertionMethod:
+		return C.VM_PURPOSE_ASSERTION_METHOD
+	case VerificationMethodPurpose_KeyAgreement:
+		return C.VM_PURPOSE_KEY_AGREEMENT
+	case VerificationMethodPurpose_CapabilityInvocation:
+		return C.VM_PURPOSE_CAPABILITY_INVOCATION
+	case VerificationMethodPurpose_CapabilityDelegation:
+		return C.VM_PURPOSE_CAPABILITY_DELEGATION
+	case VerificationMethodPurpose_PublicKey:
+		return C.VM_PURPOSE_PUBLIC_KEY
+	default:
+		return *(*C.enum_VerificationMethod_Purpose)(unsafe.Pointer(&UnknownEnum))
+	}
+
+}

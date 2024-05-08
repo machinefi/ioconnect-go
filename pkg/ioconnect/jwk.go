@@ -4,145 +4,207 @@ package ioconnect
 //#include <ioconnect.h>
 import "C"
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"unsafe"
 
 	"github.com/pkg/errors"
 )
 
-func JWKFromDIDDoc(content []byte) (*JWK, error) {
-	doc := C.iotex_diddoc_parse(C.CString(string(content)))
-	if doc == nil {
-		return nil, errors.Errorf("failed to parse did document")
-	}
-
-	num := C.iotex_diddoc_verification_method_get_num(doc, C.VM_PURPOSE_KEY_AGREEMENT)
-	fmt.Println(num)
-	vm := C.iotex_diddoc_verification_method_get(doc, C.VM_PURPOSE_KEY_AGREEMENT, num-1)
-	if vm == nil {
-		return nil, errors.Errorf("failed to get key agreement info")
-	}
-
-	kajwk := &JWK{
-		dids: make(map[string]string),
-		kids: make(map[string]string),
-		kas:  make(map[string]*JWK),
-		docs: make(map[string]*DIDDoc),
-	}
-	kajwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
-	if kajwk._ptr == nil {
-		return nil, errors.Errorf("failed to get pk_u jwk")
-	}
-
-	if err := kajwk.bindKID("io"); err != nil {
+func NewJWKFromDoc(content []byte) (*JWK, error) {
+	doc, err := NewDIDDoc(content)
+	if err != nil {
 		return nil, err
 	}
+	defer doc.Destroy()
 
-	num = C.iotex_diddoc_verification_method_get_num(doc, C.VM_PURPOSE_AUTHENTICATION)
-	fmt.Println(num)
-	vm = C.iotex_diddoc_verification_method_get(doc, C.VM_PURPOSE_AUTHENTICATION, num-1)
-	if vm == nil {
-		return nil, errors.Errorf("failed to get key agreement info")
-	}
-	masterjwk := &JWK{
-		dids: make(map[string]string),
-		kids: make(map[string]string),
-		kas:  make(map[string]*JWK),
-		docs: make(map[string]*DIDDoc),
-	}
-	masterjwk._ptr = *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
-	if kajwk._ptr == nil {
-		return nil, errors.Errorf("failed to get pk_u jwk")
-	}
-
-	masterjwk.kas["io"] = kajwk
-	return masterjwk, nil
+	return doc.ParseJWK()
 }
 
-func NewJWK(tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType, methods ...string) (*JWK, error) {
-	key := &JWK{}
-	key._ptr = C.iotex_jwk_generate(
+func newJWKBySecret(secret [4]uint64, tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType) (*JWK, error) {
+	_secret := make([]byte, 32)
+	for i := 0; i < 4; i++ {
+		binary.LittleEndian.PutUint64(_secret, secret[i])
+	}
+	c_secret := (*C.uint8_t)(C.CBytes(_secret))
+	defer C.free(unsafe.Pointer(c_secret))
+
+	k := &JWK{}
+	k._ptr = C.iotex_jwk_generate_by_secret(
+		c_secret,
+		32,
 		tpe.CEnum(),
 		keyAlg.CEnum(),
 		lifetime.CConst(),
 		usage.CConst(),
 		alg.CConst(),
-		(*C.uint)(unsafe.Pointer(&key.id)),
+		(*C.uint)(unsafe.Pointer(&k.id)),
 	)
-	if key._ptr == nil {
-		return nil, errors.Errorf("failed to generate jwk")
+	if k._ptr == nil {
+		return nil, errors.Errorf("failed to generate jwk by secret")
 	}
 
-	key.kas = make(map[string]*JWK)
-	key.docs = make(map[string]*DIDDoc)
-	key.dids = make(map[string]string)
-	key.kids = make(map[string]string)
-	for _, method := range methods {
-		v := key.DID(method)
-		if v == "" {
-			return nil, errors.Errorf("failed to generate did, method: %s", method)
-		}
-		v = key.KID(method)
-		if v == "" {
-			return nil, errors.Errorf("failed to generate kid, method: %s", method)
-		}
+	if err := k.init(); err != nil {
+		return nil, err
 	}
 
-	return key, nil
+	return k, nil
 }
 
-func NewMasterJWK(method ...string) (*JWK, error) {
-	return NewJWK(
+func NewJWKBySecret(secret [2][4]uint64) (*JWK, error) {
+	k, err := newJWKBySecret(
+		secret[0],
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		// JwkLifetime_Persistent, // TODO
 		JwkLifetime_Volatile,
 		PsaKeyUsageType_SignHash|PsaKeyUsageType_VerifyHash|PsaKeyUsageType_Export,
 		PsaHashType_SHA_256.PsaAlgorithmECDSA(),
-		method...,
 	)
-}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate master key")
+	}
 
-func NewKeyAgreementJWK(method ...string) (*JWK, error) {
-	return NewJWK(
+	ka, err := newJWKBySecret(
+		secret[1],
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		// JwkLifetime_Persistent, // ?
 		JwkLifetime_Volatile,
 		PsaKeyUsageType_Derive,
 		PsaAlgECDH,
-		method...,
 	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate key agreement key")
+	}
+	k.ka = ka
+	k.secret = secret
+
+	if err = k.register(); err != nil {
+		return nil, err
+	}
+
+	k.ka = ka
+	return k, nil
+}
+
+func NewJWK() (*JWK, error) {
+	secret := [2][4]uint64{}
+
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 4; j++ {
+			secret[i][j] = rand.Uint64()
+		}
+	}
+
+	return NewJWKBySecret(secret)
 }
 
 type JWK struct {
 	_ptr *C.JWK
 	id   uint32
-	dids map[string]string  // dids method: did
-	kids map[string]string  // kids method: kid
-	kas  map[string]*JWK    // kas method: key agreement jwk
-	docs map[string]*DIDDoc // docs method: DIDDocument
+	did  string
+	kid  string
+	pk   *PublicKeyJWK
+	ka   *JWK
+	doc  *Doc
+
+	secret [2][4]uint64
+}
+
+// register bind kid and JWK
+func (k *JWK) register() error {
+	kid := C.CString(k.ka.KID())
+	defer C.free(unsafe.Pointer(kid))
+
+	status := C.iotex_registry_item_register(kid, k.ka._ptr)
+	if status < 0 {
+		return errors.Errorf("failed to register ka kid")
+	}
+	return nil
+}
+
+func (k *JWK) init() error {
+	if err := k.generateDID(); err != nil {
+		return errors.Wrap(err, "failed to generate did")
+	}
+	if err := k.generateKID(); err != nil {
+		return errors.Wrap(err, "failed to generate kid")
+	}
+	if err := k.generatePK(); err != nil {
+		return errors.Wrap(err, "failed to generate public key")
+	}
+	return nil
+}
+
+func (k *JWK) generateDID() error {
+	if k.did != "" {
+		return nil
+	}
+
+	method := C.CString(MethodIO)
+	defer C.free(unsafe.Pointer(method))
+
+	did := C.iotex_did_generate(method, k._ptr)
+	if did == nil {
+		return errors.New("failed to generate did:io")
+	}
+	defer C.free(unsafe.Pointer(did))
+	k.did = C.GoString(did)
+	return nil
+}
+
+func (k *JWK) generateKID() error {
+	if k.kid != "" {
+		return nil
+	}
+
+	method := C.CString(MethodIO)
+	defer C.free(unsafe.Pointer(method))
+
+	kid := C.iotex_jwk_generate_kid(method, k._ptr)
+	if kid == nil {
+		return errors.New("failed to generate did:io#key")
+	}
+	defer C.free(unsafe.Pointer(kid))
+	k.kid = C.GoString(kid)
+	return nil
+}
+
+func (k *JWK) generatePK() error {
+	if k.pk != nil {
+		return nil
+	}
+
+	var ec *EC
+	switch k.Type() {
+
+	case JwkType_EC:
+		// TODO if this union member need manual free ?
+		ec = &EC{_ptr: *(*C.ECParams)(unsafe.Pointer(&k._ptr.Params))}
+	default:
+		return errors.Errorf("unsupported jwk parameter: [type: %d]", k.Type())
+	}
+
+	kid := ""
+	if ec.Crv() == JwkSupportKeyAlg_P256.String() {
+		kid = fmt.Sprintf("Key-p256-%d", k.id)
+	} else {
+		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), k.id)
+	}
+	k.pk = &PublicKeyJWK{
+		Crv: ec.Crv(),
+		X:   ec.X(),
+		Y:   ec.Y(),
+		Kty: k.Type().String(),
+		Kid: kid,
+	}
+	return nil
 }
 
 func (k *JWK) ID() uint32 { return k.id }
 
-func (k *JWK) Type() JwkType {
-	return (JwkType)(k._ptr._type)
-}
-
-func (k *JWK) Param() any {
-	switch k.Type() {
-	case JwkType_EC:
-		return &EC{_ptr: *(*C.ECParams)(unsafe.Pointer(&k._ptr.Params))}
-	// case JwkType_RSA:
-	// case JwkType_Symmetric:
-	// case JwkType_OKP:
-	default:
-		panic("unsupported")
-		return nil
-	}
-}
+func (k *JWK) Type() JwkType { return (JwkType)(k._ptr._type) }
 
 func (k *JWK) PrintFields() {
 	fmt.Printf("public_key_use:          %v %T\n", k._ptr.public_key_use, k._ptr.public_key_use)
@@ -161,189 +223,100 @@ func (k *JWK) PrintFields() {
 	fmt.Printf("ec.ecc_private_key:      %v %T\n", ec.ecc_private_key, ec.ecc_private_key)
 }
 
-func (k *JWK) DID(method string) string {
-	v, ok := k.dids[method]
-	if ok {
-		return v
-	}
-	c := C.iotex_did_generate(C.CString(method), k._ptr)
-	if c == nil {
-		return ""
-	}
-	v = C.GoString(c)
-	k.dids[method] = v
-	return v
+func (k *JWK) DID() string { return k.did }
+
+func (k *JWK) KID() string { return k.kid }
+
+func (k *JWK) KeyAgreement() *JWK {
+	return k.ka
 }
 
-func (k *JWK) DIDio() string {
-	c := C.iotex_did_generate(C.CString("io"), k._ptr)
-	if c == nil {
-		return ""
-	}
-	v := C.GoString(c)
-	return v
+func (k *JWK) KeyAgreementDID() string {
+	return k.ka.DID()
 }
 
-func (k *JWK) KID(method string) string {
-	v, ok := k.kids[method]
-	if ok {
-		return v
-	}
-	c := C.iotex_jwk_generate_kid(C.CString(method), k._ptr)
-	if c == nil {
-		return ""
-	}
-	v = C.GoString(c)
-	k.kids[method] = v
-	return v
+func (k *JWK) KeyAgreementKID() string {
+	return k.ka.KID()
 }
 
-func (k *JWK) KeyAgreement(method string) (*JWK, error) {
-	if ka, ok := k.kas[method]; ok {
-		return ka, nil
-	}
-	ka, err := NewKeyAgreementJWK(method)
-	if err != nil {
-		return nil, err
-	}
-	if err := ka.bindKID(method); err != nil {
-		return nil, err
-	}
-	k.kas[method] = ka
-	return ka, nil
-}
-
-func (k *JWK) bindKID(method string) error {
-	kid := k.KID(method)
-	if kid == "" {
-		return errors.Errorf("invalid kid")
+func (k *JWK) Doc() *Doc {
+	if k.doc != nil {
+		return k.doc
 	}
 
-	status := C.iotex_registry_item_register(C.CString(kid), k._ptr)
-	// if *(*C.int)(unsafe.Pointer(&status)) < 0 {
-	if status < 0 {
-		return errors.Errorf("failed to register ka kid")
-	}
-	return nil
-}
-
-func (k *JWK) KeyAgreementDID(method string) string {
-	ka, err := k.KeyAgreement(method)
-	if err != nil {
-		return ""
-	}
-	return ka.DID(method)
-}
-
-func (k *JWK) KeyAgreementKID(method string) string {
-	ka, err := k.KeyAgreement(method)
-	if err != nil {
-		return ""
-	}
-	return ka.KID(method)
-}
-
-func (k *JWK) PublicKeyJwk() (*PublicKeyJwk, error) {
-	ec, ok := k.Param().(*EC)
-	if !ok {
-		return nil, errors.Errorf("unsupported jwk parameter")
-	}
-
-	kid := ""
-	if ec.Crv() == JwkSupportKeyAlg_P256.String() {
-		kid = fmt.Sprintf("Key-p256-%d", k.id)
-	} else {
-		kid = fmt.Sprintf("Key-%s-%d", ec.Crv(), k.id)
-	}
-	return &PublicKeyJwk{
-		Crv: ec.Crv(),
-		X:   ec.X(),
-		Y:   ec.Y(),
-		Kty: k.Type().String(),
-		Kid: kid,
-	}, nil
-}
-
-func (k *JWK) DIDDoc(method string) (*DIDDoc, error) {
-	if doc, ok := k.docs[method]; ok {
-		return doc, nil
-	}
-
-	ka, err := k.KeyAgreement(method)
-	if err != nil {
-		return nil, errors.Errorf("failed to create key agreement jwk")
-	}
-
-	kpk, err := k.PublicKeyJwk()
-	if err != nil {
-		return nil, err
-	}
-	kapk, err := ka.PublicKeyJwk()
-	if err != nil {
-		return nil, err
-	}
-
-	doc := &DIDDoc{
+	k.doc = &Doc{
 		Contexts: []string{
 			"https://www.w3.org/ns/did/v1",
 			"https://w3id.org/security#keyAgreementMethod",
 		},
-		ID:             k.DID(method),
-		KeyAgreement:   []string{ka.KID(method)},
-		Authentication: []string{k.KID(method)},
+		ID:             k.DID(),
+		KeyAgreement:   []string{k.ka.KID()},
+		Authentication: []string{k.KID()},
 		VerificationMethod: []VerificationMethod{
 			{
-				ID:           ka.KID(method),
+				ID:           k.ka.KID(),
 				Type:         "JsonWebKey2020",
-				Controller:   k.DID(method),
-				PublicKeyJwk: *kapk,
+				Controller:   k.DID(),
+				PublicKeyJwk: *k.ka.pk,
 			},
 			{
-				ID:           k.KID(method),
+				ID:           k.KID(),
 				Type:         "JsonWebKey2020",
-				Controller:   k.DID(method),
-				PublicKeyJwk: *kpk,
+				Controller:   k.DID(),
+				PublicKeyJwk: *k.pk,
 			},
 		},
 	}
-	k.docs[ka.DID(method)] = doc
 
-	return doc, nil
+	return k.doc
 }
 
-func (k *JWK) SignToken(method string, subject *JWK) (string, error) {
-	return k.SignTokenBySubject(subject.DID(method))
-}
-
-func (k *JWK) SignTokenBySubject(subject string) (string, error) {
-	issuer := k.DID("io")
+func (k *JWK) SignToken(subject string) (string, error) {
+	issuer := k.DID()
 	vc := NewVerifiableCredentialByIssuerAndSubjectDIDs(issuer, subject)
 	return k.SignTokenByVC(vc)
 }
 
 func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
-	issuer := k.DID("io")
+	c_issuer := C.CString(k.DID())
+	defer C.free(unsafe.Pointer(c_issuer))
+
 	data, err := json.Marshal(vc)
 	if err != nil {
 		return "", err
 	}
 
 	handle := C.iotex_jwt_claim_new()
-	object := C.cJSON_Parse(C.CString(string(data)))
+	if handle == nil {
+		return "", errors.Errorf("failed to call C.iotex_jwt_claim_new, nil returned")
+	}
+	defer C.iotex_jwt_claim_destroy(handle)
 
-	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(C.CString(issuer)))
-	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_PRIVATE_JSON, C.CString("vp"), unsafe.Pointer(object))
+	object := C.cJSON_Parse(C.CString(string(data)))
+	if object == nil {
+		return "", errors.Errorf("failed to call C.cJSON_Parse, nil returned")
+	}
+	// TODO this invoke triggers segment fault if c-language need release this memory?
+	// C.cJSON_Delete(object)
+
+	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(c_issuer))
+
+	name := C.CString("vp")
+	defer C.free(unsafe.Pointer(name))
+	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_PRIVATE_JSON, name, unsafe.Pointer(object))
 
 	token := C.iotex_jwt_serialize(handle, C.JWT_TYPE_JWS, C.ES256, k._ptr)
 	if token == nil {
 		return "", errors.Errorf("failed to sign token")
 	}
+	defer C.free(unsafe.Pointer(token))
+
 	return C.GoString(token), nil
 }
 
 func (k *JWK) VerifyToken(token string) (string, error) {
 	v := C.iotex_jwt_verify(C.CString(token), C.JWT_TYPE_JWS, C.ES256, k._ptr)
-	if v == *(*C._Bool)(unsafe.Pointer(new(int))) {
+	if v == False.CConst() {
 		return "", errors.Errorf("invalid token")
 	}
 	/*
@@ -368,102 +341,78 @@ func (k *JWK) VerifyToken(token string) (string, error) {
 	return "todo_return_peer_did", nil
 }
 
-func (k *JWK) Encrypt(method string, plain []byte, recipient string) ([]byte, error) {
+func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
 	data := (*C.char)(C.CBytes(plain))
+	defer C.free(unsafe.Pointer(data))
+
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(k.DID(method)) // sender
-	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{C.CString(recipient)}
-	// format := *(*C._Bool)(unsafe.Pointer(new(int)))
+	did := C.CString(k.DID()) // sender
+
+	c_recipient := C.CString(recipient)
+	defer C.free(unsafe.Pointer(c_recipient))
+
+	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{c_recipient}
 
 	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0])
-	// c := C.iotex_jwe_json_serialize(data, alg, enc, did, k._ptr, &recipients[0])
 	if c == nil {
 		return nil, errors.Errorf("failed to encrypt data")
 	}
-	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
+	defer C.free(unsafe.Pointer(c))
+	cipher := C.GoString(c)
+	return []byte(cipher), nil
 }
 
-func (k *JWK) Decrypt(method string, cipher []byte, sender *JWK) ([]byte, error) {
+func (k *JWK) Decrypt(cipher []byte, sender *JWK) ([]byte, error) {
 	data := (*C.char)(C.CBytes(cipher))
+	defer C.free(unsafe.Pointer(data))
+
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(sender.DID(method)) // sender
-	recipient := C.CString(k.KeyAgreementKID(method))
+	did := C.CString(sender.DID()) // sender
+
+	recipient := C.CString(k.KeyAgreementKID())
+	defer C.free(unsafe.Pointer(recipient))
 
 	c := C.iotex_jwe_decrypt(data, alg, enc, did, sender._ptr, recipient)
 	if c == nil {
 		return nil, errors.Errorf("failed to decrypt data")
 	}
+	defer C.free(unsafe.Pointer(c))
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
 
-func (k *JWK) DecryptBySenderDID(method string, cipher []byte, sender string) ([]byte, error) {
+func (k *JWK) DecryptBySenderDID(cipher []byte, sender string) ([]byte, error) {
 	data := (*C.char)(C.CBytes(cipher))
+	defer C.free(unsafe.Pointer(data))
+
 	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
 	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
 	did := C.CString(sender) // sender
-	recipient := C.CString(k.KeyAgreementKID(method))
+
+	recipient := C.CString(k.KeyAgreementKID())
+	defer C.free(unsafe.Pointer(recipient))
 
 	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
 	if c == nil {
 		return nil, errors.Errorf("failed to decrypt data by sender did")
 	}
-	// if *(*int)(unsafe.Pointer(c)) == 0x01 {
-	// 	return nil, errors.Errorf("invalid C pointer")
-	// }
+	defer C.free(unsafe.Pointer(c))
+
 	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
 }
 
-/*
-func (k *JWK) DecryptBySenderDID2(method string, cipher []byte, sender string) ([]byte, error) {
-	data := (*C.char)(C.CBytes(cipher))
-	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
-	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(sender) // sender
-	recipient := C.CString(k.KID(method))
-	fmt.Println(k.KID(method))
+func (k *JWK) Export() [2][4]uint64 {
+	return k.secret
+}
 
-	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
-	if c == nil {
-		return nil, errors.Errorf("failed to decrypt data by sender did")
+func (k *JWK) Destroy() {
+	if k._ptr != nil {
+		C.iotex_jwk_destroy(k._ptr)
+		k._ptr = nil
 	}
-	return C.GoBytes(unsafe.Pointer(c), (C.int)(C.strlen(c))), nil
-}
-*/
-
-type EC struct {
-	_ptr C.ECParams
-}
-
-func (v *EC) Crv() string {
-	c := (*C.char)(unsafe.Pointer(&v._ptr.crv[0]))
-	return C.GoString(c)
-}
-
-func (v *EC) X() string {
-	c := (*C.char)(unsafe.Pointer(&v._ptr.x_coordinate[0]))
-	return C.GoString(c)
-}
-
-func (v *EC) Y() string {
-	c := (*C.char)(unsafe.Pointer(&v._ptr.y_coordinate[0]))
-	return C.GoString(c)
-}
-
-func (v *EC) EccPrivateKey() string {
-	c := (*C.char)(unsafe.Pointer(&v._ptr.ecc_private_key[0]))
-	return C.GoString(c)
-}
-
-type RSA struct {
-	_ptr C.RSAParams
-}
-
-type Symmetric struct {
-	_ptr C.SymmetricParams
-}
-
-type Oct struct {
-	_ptr C.OctetParams
+	if k.ka._ptr != nil {
+		C.iotex_jwk_destroy(k.ka._ptr)
+		k.ka._ptr = nil
+	}
 }

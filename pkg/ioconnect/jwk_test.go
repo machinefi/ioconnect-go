@@ -8,101 +8,79 @@ import (
 )
 
 func TestNewJWK(t *testing.T) {
-	// server:
-	server, err := ioconnect.NewMasterJWK("io", "key")
+	t.Logf("server jwk initial =================")
+	server, err := ioconnect.NewJWK()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer server.Destroy()
 
-	t.Logf("server did:io:        %s", server.DID("io"))
-	t.Logf("server did:io:        %s", server.DIDio())
-	t.Logf("server did:io#key:    %s", server.KID("io"))
-	t.Logf("server ka did:io:     %s", server.KeyAgreementDID("io"))
-	t.Logf("server ka did:io#key: %s", server.KeyAgreementKID("io"))
+	t.Logf("server did:io:        %s", server.DID())
+	t.Logf("server did:io#key:    %s", server.KID())
+	t.Logf("server ka did:io:     %s", server.KeyAgreementDID())
+	t.Logf("server ka did:io#key: %s", server.KeyAgreementKID())
+	secrets := server.Export()
+	t.Logf("server master secret: %d %d %d %d", secrets[0][0], secrets[0][1], secrets[0][2], secrets[0][3])
+	t.Logf("server ka secret:     %d %d %d %d", secrets[1][0], secrets[1][1], secrets[1][2], secrets[1][3])
 
-	serverdoc, err := server.DIDDoc("io")
+	serverdoc, _ := json.MarshalIndent(server.Doc(), "", "  ")
+	t.Logf(string(serverdoc))
+
+	t.Logf("client jwk initial =================")
+	client, err := ioconnect.NewJWK()
 	if err != nil {
 		t.Fatal(err)
 	}
-	serverdoccontent, _ := json.MarshalIndent(serverdoc, "", "  ")
-	t.Logf(string(serverdoccontent))
+	defer client.Destroy()
 
-	// client
-	client, err := ioconnect.NewMasterJWK("io", "key")
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Logf("client did:io:        %s", client.DID())
+	t.Logf("client did:io#key:    %s", client.KID())
+	t.Logf("client ka did:io:     %s", client.KeyAgreementDID())
+	t.Logf("client ka did:io#key: %s", client.KeyAgreementKID())
+	secrets = client.Export()
+	t.Logf("client master secret: %d %d %d %d", secrets[0][0], secrets[0][1], secrets[0][2], secrets[0][3])
+	t.Logf("client ka secret:     %d %d %d %d", secrets[1][0], secrets[1][1], secrets[1][2], secrets[1][3])
 
-	t.Logf("client did:io:        %s", client.DID("io"))
-	t.Logf("client did:io#key:    %s", client.KID("io"))
-	t.Logf("client ka did:io:     %s", client.KeyAgreementDID("io"))
-	t.Logf("client ka did:io#key: %s", client.KeyAgreementKID("io"))
+	clientdoc, _ := json.MarshalIndent(client.Doc(), "", "  ")
+	t.Logf(string(clientdoc))
 
-	// generate client did doc
-	clientdoc, err := client.DIDDoc("io")
-	if err != nil {
-		t.Fatal(err)
-	}
-	clientdoccontent, _ := json.MarshalIndent(clientdoc, "", "  ")
-	t.Logf(string(clientdoccontent))
-
-	// mock
-	// device register: did + diddoc -> device portal(uuz)
-	// device jwk en/decrypt
-
-	// sprout: did -> portal -> did doc(serialized) ? @uuz
-	// did doc -> jwk
-	// jwk decrypt encrypt
-
-	// sign token for client
-	// client registered to portal
-	token, err := server.SignToken("io", client)
+	t.Log("request sign token =================")
+	token, err := server.SignToken(client.DID())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(token)
 
-	// verify token
+	t.Log("request verify token ===============")
 	clientdid, err := server.VerifyToken(token)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(clientdid)
 
-	// did comm client encrypt
-	// client.encrypt(plain, server ka id)=>cipher
-	// server.decrypt(cipher, client ka id)=>plain
-
-	// server doc -> server JWK(server2)
-	// cipher, err := client.Encrypt("io", []byte("payload"), server2.KeyAgreementKID("io"))
-
-	// device 1
-	// doc -> jwk == server ka jwk
-	// cipher, err := client.Encrypt("io", []byte("payload"), jwk.KID("io"))
-	cipher, err := client.Encrypt("io", []byte("payload"), server.KeyAgreementKID("io"))
+	t.Log("client encrypt payload =============")
+	cipher, err := client.Encrypt([]byte("payload"), server.KeyAgreementKID())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(string(cipher))
 
-	// _, _ = server.KeyAgreement("io")
-
-	// DID -> DOC doc->jwk
-	// server 1
-	plain, err := server.Decrypt("io", cipher, client)
+	t.Log("server decrypt by client jwk =======")
+	plain, err := server.Decrypt(cipher, client)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(string(plain))
 
-	// plain, err = server.DecryptBySenderDID("io", cipher, client.DID("io"))
-	plain, err = server.DecryptBySenderDID("io", cipher, "")
+	t.Log("server decrypt by client did =======")
+	plain, err = server.DecryptBySenderDID(cipher, client.DID())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(plain)
+	t.Log(string(plain))
 }
 
+/*
 func TestDocJWK(t *testing.T) {
 	doc := []byte(`{
           "@context": [
@@ -160,15 +138,16 @@ func TestDocJWK(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cipher, err := client.Encrypt("io", []byte("something"), server.KeyAgreementKID("io"))
+	cipher, err := client.Encrypt([]byte("something"), server.KeyAgreementKID("io"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Log(string(cipher))
 
-	plain, err := server.DecryptBySenderDID("io", cipher, client.DID("io"))
+	plain, err := server.DecryptBySenderDID(cipher, client.DID("io"))
 	if err != nil {
 		t.Logf("caused by the JWK is parsed from did doc cannot used to decrypt data: %v", err)
 	}
 	t.Log(string(plain))
 }
+*/

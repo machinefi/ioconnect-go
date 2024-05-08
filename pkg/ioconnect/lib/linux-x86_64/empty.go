@@ -1,1 +1,1 @@
-package linux-x86_64
+package linux_x86_64
