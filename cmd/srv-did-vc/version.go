@@ -10,6 +10,7 @@ var (
 	Name      string
 	Feature   string
 	Version   string
+	CommitID  string
 	Timestamp string
 
 	BuildVersion string
@@ -29,7 +30,7 @@ func init() {
 		Timestamp = "unknown"
 	}
 
-	BuildVersion = fmt.Sprintf("%s@%s_%s", Feature, Version, Timestamp)
+	BuildVersion = fmt.Sprintf("%s@%s-%s_%s", Feature, Version, CommitID, Timestamp)
 
 	fmt.Printf(color.CyanString("%s: %s\n\n", Name, BuildVersion))
 }
