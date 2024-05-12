@@ -15,10 +15,10 @@ func Command() *cobra.Command {
 		},
 	}
 
-	root.AddCommand(commands.NewInitCmd().Command)
-	root.AddCommand(commands.NewVersionCmd().Command)
+	root.AddCommand(NewVersion().Command)
+	root.AddCommand(NewGlobal().Command)
 	root.AddCommand(commands.NewGenerateCmd().Command)
-	root.AddCommand(commands.NewVerifiableCredentialCmd().Command)
+	root.AddCommand(commands.NewTokenCmd().Command)
 	root.AddCommand(commands.NewDecryptDataCmd().Command)
 	root.AddCommand(commands.NewEncryptDataCmd().Command)
 
@@ -26,5 +26,8 @@ func Command() *cobra.Command {
 }
 
 func main() {
-	Command().Execute()
+	cmd := Command()
+	if err := cmd.Execute(); err != nil {
+		cmd.Println(err)
+	}
 }

@@ -1,7 +1,9 @@
 package ioconnect
 
-import "C"
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Doc struct {
 	Contexts           []string             `json:"@context"`
@@ -9,6 +11,11 @@ type Doc struct {
 	Authentication     []string             `json:"authentication"`
 	KeyAgreement       []string             `json:"keyAgreement"` // ka key
 	VerificationMethod []VerificationMethod `json:"verificationMethod,omitempty"`
+}
+
+func (d *Doc) String() string {
+	content, _ := json.Marshal(d)
+	return string(content)
 }
 
 type VerificationMethod struct {

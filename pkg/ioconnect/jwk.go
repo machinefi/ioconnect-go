@@ -47,6 +47,18 @@ func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, life
 	return k, nil
 }
 
+func NewJWKBySecretBase64(secret string) (*JWK, error) {
+	secrets, err := NewJWKSecretsFromBase64(secret)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to new secret from string")
+	}
+	key, err := NewJWKBySecret(secrets)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate jwk from secrets")
+	}
+	return key, nil
+}
+
 func NewJWKBySecret(secrets JWKSecrets) (*JWK, error) {
 	k, err := newJWKBySecret(
 		secrets[0],
@@ -282,14 +294,13 @@ func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
 	if object == nil {
 		return "", errors.Errorf("failed to call C.cJSON_Parse, nil returned")
 	}
-	// TODO this C.free invoke triggers double free fault if c-language hold this memory?
-	// TODO ownership not transferred, go should release object
-	// defer C.cJSON_Delete(object)
+	defer C.cJSON_Delete(object)
 
 	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_ISS, nil, unsafe.Pointer(c_issuer))
 
 	name := C.CString("vp")
 	defer C.free(unsafe.Pointer(name))
+
 	C.iotex_jwt_claim_set_value(handle, C.JWT_CLAIM_TYPE_PRIVATE_JSON, name, unsafe.Pointer(object))
 
 	token := C.iotex_jwt_serialize(handle, C.JWT_TYPE_JWS, C.ES256, k._ptr)
@@ -302,30 +313,36 @@ func (k *JWK) SignTokenByVC(vc *VerifiableCredential) (string, error) {
 }
 
 func (k *JWK) VerifyToken(token string) (string, error) {
-	v := C.iotex_jwt_verify(C.CString(token), C.JWT_TYPE_JWS, C.ES256, k._ptr)
+	ctoken := C.CString(token)
+	defer C.free(unsafe.Pointer(ctoken))
+
+	v := C.iotex_jwt_verify(ctoken, C.JWT_TYPE_JWS, C.ES256, k._ptr)
 	if v == False.CConst() {
 		return "", errors.Errorf("invalid token")
 	}
-	/*
-		vp := C.iotex_jwt_claim_get_value(ctoken, C.JWT_TYPE_JWS, C.JWT_CLAIM_TYPE_PRIVATE_JSON, C.CString("vp"))
-		if vp == nil {
-			return "", errors.Errorf("failed to get private vp")
-		}
-		vpser := C.cJSON_Print((*C.cJSON)(unsafe.Pointer(vp)))
-		if vpser == nil {
-			return "", errors.Errorf("failed to parse private vp")
-		}
-		vpcontent := C.GoString(vpser)
-		fmt.Println(vpcontent)
-		vc := &VerifiableCredential{}
 
-		if err := json.Unmarshal([]byte(vpcontent), vc); err != nil {
-			return "", errors.Errorf("failed to parse private vp")
-		}
-		return vc.CredentialSubject[0].ID, nil
-	*/
+	name := C.CString("vp")
+	defer C.free(unsafe.Pointer(name))
 
-	return "todo_return_peer_did", nil
+	vp := C.iotex_jwt_claim_get_value(ctoken, C.JWT_TYPE_JWS, C.JWT_CLAIM_TYPE_PRIVATE_JSON, name)
+	if vp == nil {
+		return "", errors.Errorf("failed to get private vp")
+	}
+	defer C.cJSON_Delete((*C.cJSON)(unsafe.Pointer(vp)))
+
+	vpser := C.cJSON_Print((*C.cJSON)(unsafe.Pointer(vp)))
+	if vpser == nil {
+		return "", errors.Errorf("failed to parse private vp")
+	}
+	defer C.free(unsafe.Pointer(vpser))
+
+	vpcontent := C.GoString(vpser)
+	vc := &VerifiableCredential{}
+
+	if err := json.Unmarshal([]byte(vpcontent), vc); err != nil {
+		return "", errors.Errorf("failed to parse private vp")
+	}
+	return vc.CredentialSubject[0].ID, nil
 }
 
 func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
@@ -342,7 +359,7 @@ func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
 
 	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{c_recipient}
 
-	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0])
+	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0], False.CConst())
 	if c == nil {
 		return nil, errors.Errorf("failed to encrypt data")
 	}

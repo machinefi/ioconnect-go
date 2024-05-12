@@ -33,7 +33,7 @@ images:
 
 .PHONY: fmt
 fmt:
-	@if [ -z $$MOD ]; then \
+	@if [ -z ${MOD} ]; then \
 		goimports -w . ; \
 	else \
 		goimports -w -local "${MOD}" . ; \
@@ -44,4 +44,6 @@ test:
 	@CGO_LDFLAGS='-L./pkg/ioconnect/lib/linux-x86_64 -lioConnectCore' go test ./... -v -covermode=atomic -coverprofile cover.out
 
 
-
+valgrind:
+	@cd pkg/ioconnect/example && CGO_LDFLAGS="-L../lib/linux-x86_64 -lioConnectCore" go build -o example.valgrind .
+	@valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes pkg/ioconnect/example/example.valgrind

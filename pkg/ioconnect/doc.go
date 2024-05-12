@@ -2,6 +2,7 @@ package ioconnect
 
 //#cgo CFLAGS: -I./include
 //#include <ioconnect.h>
+//#include <string.h>
 import "C"
 import (
 	"unsafe"
@@ -11,7 +12,11 @@ import (
 
 func NewDIDDoc(content []byte) (*DIDDoc, error) {
 	doc := &DIDDoc{}
-	doc._ptr = C.iotex_diddoc_parse(C.CString(string(content)))
+
+	c_content := C.CString(string(content))
+	defer C.free(unsafe.Pointer(c_content))
+
+	doc._ptr = C.iotex_diddoc_parse(c_content)
 	if doc._ptr == nil {
 		return nil, errors.New("failed to parse did doc")
 	}
@@ -20,7 +25,6 @@ func NewDIDDoc(content []byte) (*DIDDoc, error) {
 
 // DIDDoc wrap c-language did doc struct
 type DIDDoc struct {
-	_vms []*C.VerificationMethod_Info
 	_ptr *C.DIDDoc
 }
 
@@ -35,26 +39,24 @@ func (doc *DIDDoc) parse(purpose VerificationMethodPurpose) (k *JWK, err error) 
 	if vm == nil {
 		return nil, errors.Errorf("failed to get verification method by purpose: vm is nil")
 	}
-
-	defer func() {
-		if err != nil {
-			C.iotex_verification_method_info_destroy(vm)
-		}
-	}()
+	defer C.iotex_verification_method_info_destroy(vm)
 
 	_ptr := *(**C.JWK)(unsafe.Pointer(&vm.pk_u))
 	if _ptr == nil {
 		return nil, errors.Errorf("failed to get verification method by purpose: union pk_u is nil")
 	}
 
-	k = &JWK{_ptr: _ptr}
+	var struct_jwk C.JWK
+	var size = (C.ulong)(unsafe.Sizeof(struct_jwk))
+
+	ptr := C.malloc(size)
+	C.memcpy(unsafe.Pointer(ptr), unsafe.Pointer(_ptr), size)
+
+	k = &JWK{_ptr: (*C.JWK)(unsafe.Pointer(ptr))}
 
 	if err = k.init(); err != nil {
 		return nil, err
 	}
-
-	// keep vm refer from c-language, need free them when destroy did doc
-	doc._vms = append(doc._vms, vm)
 
 	return k, nil
 }
@@ -76,10 +78,46 @@ func (doc *DIDDoc) ParseJWK() (*JWK, error) {
 }
 
 func (doc *DIDDoc) Destroy() {
-	for i, vm := range doc._vms {
-		if vm != nil {
-			C.iotex_verification_method_info_destroy(vm)
-			doc._vms[i] = nil
+	if doc._ptr != nil {
+		// TODO need iotex_diddoc_destroy to release c-language memory
+		if v := doc._ptr.contexts.contexts; v != nil {
+			C.cJSON_Delete(v)
 		}
+		if v := doc._ptr.aka.alsoKnownAs; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.cons.controllers; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.vm.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.auth.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.assertion.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.keyagreement.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.ci.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.cd.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.publickey.vm; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.services.Services; v != nil {
+			C.cJSON_Delete(v)
+		}
+		if v := doc._ptr.property_set; v != nil {
+			C.cJSON_Delete((*C.cJSON)(v))
+		}
+
+		C.free(unsafe.Pointer(doc._ptr))
+		doc._ptr = nil
 	}
 }

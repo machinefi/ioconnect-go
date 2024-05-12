@@ -1,105 +1,68 @@
 package commands
 
-import "github.com/spf13/cobra"
+import (
+	"os"
 
-func NewDIDGenerateCmd() *DID {
-	_cmd := &DID{}
-	_cmd.Command = &cobra.Command{
-		Use:   "did",
-		Short: "generate a did identifier",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return _cmd.Execute(cmd)
-		},
-	}
-	_cmd.Command.Flags().StringVarP(&_cmd.method, "method", "", "", "did method")
-	return _cmd
-}
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 
-type DID struct {
-	Command *cobra.Command
-	method  string
-}
-
-func (i *DID) Execute(cmd *cobra.Command) error {
-	switch i.method {
-	case "io":
-	case "key":
-	default:
-		i.method = "io"
-	}
-	// 1. new a jwk
-	// iotex_jwk_generate(
-	//  JWK type ==> support EC(elliptic curve only until now), JWKTYPE_EC
-	//	Key algorithm ==> JWK_SUPPORT_KEY_ALG_P256,
-	// 	Lifetime ==> IOTEX_JWK_LIFETIME_VOLATILE,
-	// 	Key Usage ==> PSA_KEY_USAGE_SIGN_HASH|PSA_KEY_USAGE_VERIFY_HASH|PSA_KEY_USAGE_EXPORT,
-	// 	Algorithm ==> PSA_ALG_ECDSA(PSA_ALG_SHA_256),
-	// 	KeyID ==> &mySignKeyID,
-	// ) => *JWK
-
-	// 2. generate did with jwk
-	// iotex_did_generate(method, *JWK) ==> string
-
-	cmd.Println("generated did: did:io:0xb48ec7e65b6463d7f8c7e6e659dd375c88abdb9b")
-	return nil
-}
-
-func NewDIDDocGenerateCmd() *DIDDoc {
-	_cmd := &DIDDoc{}
-	_cmd.Command = &cobra.Command{
-		Use:   "doc",
-		Short: "generate a did document",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return _cmd.Execute(cmd)
-		},
-	}
-	_cmd.Command.Flags().StringVarP(&_cmd.method, "method", "", "", "did method")
-	_cmd.Command.Flags().StringVarP(&_cmd.subject, "subject", "", "", "did document subject(owner)")
-	_cmd.Command.MarkFlagRequired("subject")
-	return _cmd
-}
-
-type DIDDoc struct {
-	Command *cobra.Command
-	method  string
-	subject string
-}
-
-func (i *DIDDoc) Execute(cmd *cobra.Command) error {
-	// 1. generate a key agreement JWK
-	// iotex_jwk_generate(
-	//	JWKTYPE_EC,
-	//	JWK_SUPPORT_KEY_ALG_P256,
-	// 	IOTEX_JWK_LIFETIME_VOLATILE,
-	// 	PSA_KEY_USAGE_DERIVE,
-	// 	PSA_ALG_ECDH,
-	// 	&myKeyAgreementKeyID); => *JWK
-
-	// 2. generate key agreement did
-	// iotex_did_generate("io", JWK); did:io:...
-
-	// 3. generate key agreement did key(with #key fragment)
-	// iotex_jwk_generate_kid("io", peerKAJWK); did:io:...#key....
-
-	// 4. compose a did doc
-
-	cmd.Println("generated did: did:io:0xb48ec7e65b6463d7f8c7e6e659dd375c88abdb9b")
-	return nil
-}
+	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
+)
 
 func NewGenerateCmd() *Generate {
 	_cmd := &Generate{}
-
 	_cmd.Command = &cobra.Command{
 		Use:   "generate",
-		Short: "generate did or did document",
+		Short: "generate a did jwk context and output did and ka information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return _cmd.Execute(cmd)
+		},
 	}
-	_cmd.Command.AddCommand(NewDIDDocGenerateCmd().Command)
-	_cmd.Command.AddCommand(NewDIDGenerateCmd().Command)
-
+	_cmd.Command.Flags().StringVarP(&_cmd.secret, "secret", "", "", "jwk secret base64 string for generate jwk context")
+	_cmd.Command.Flags().StringVarP(&_cmd.secretPath, "secret-path", "", "", "jwk secret from filesystem for generate jwk context")
 	return _cmd
 }
 
 type Generate struct {
-	Command *cobra.Command
+	Command    *cobra.Command
+	secret     string
+	secretPath string
+}
+
+func (i *Generate) Execute(cmd *cobra.Command) (err error) {
+	var (
+		key     *ioconnect.JWK
+		secrets ioconnect.JWKSecrets
+	)
+
+	if i.secret == "" {
+		content, err := os.ReadFile(i.secretPath)
+		if err == nil {
+			i.secret = string(content)
+		}
+	}
+
+	defer func() {
+		if err != nil {
+			cmd.PrintErrln(err)
+			return
+		}
+		PrintJWK(cmd, key, i.secret == "")
+	}()
+
+	if i.secret == "" {
+		key, err = ioconnect.NewJWK()
+	} else {
+		secrets, err = ioconnect.NewJWKSecretsFromBase64(i.secret)
+		if err != nil {
+			err = errors.Wrap(err, "failed to parse secret")
+			return
+		}
+		key, err = ioconnect.NewJWKBySecret(secrets)
+		if err != nil {
+			err = errors.Wrap(err, "failed to generate jwk from secret")
+			return
+		}
+	}
+	return nil
 }

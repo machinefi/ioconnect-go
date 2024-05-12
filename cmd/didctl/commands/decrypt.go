@@ -1,6 +1,11 @@
 package commands
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
+	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
+)
 
 func NewDecryptDataCmd() *Decrypt {
 	_cmd := &Decrypt{}
@@ -13,25 +18,46 @@ func NewDecryptDataCmd() *Decrypt {
 		},
 	}
 
-	_cmd.Command.Flags().StringVarP(&_cmd.payload, "payload", "", "", "cipher data to decrypt")
-	_cmd.Command.MarkFlagRequired("payload")
-	_cmd.Command.Flags().StringVarP(&_cmd.token, "token", "", "", "subject did")
-	_cmd.Command.MarkFlagRequired("subject")
+	_cmd.Command.Flags().StringVarP(&_cmd.cipher, "cipher", "", "", "cipher data to decrypt")
+	_ = _cmd.Command.MarkFlagRequired("cipher")
+	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient did")
+	_cmd.Command.Flags().StringVarP(&_cmd.secrets, "secret", "", "", "decryptor's secret, if empty use default config")
 
 	return _cmd
 }
 
 type Decrypt struct {
-	Command *cobra.Command
-	token   string
-	payload string
+	Command   *cobra.Command
+	cipher    string
+	secrets   string
+	recipient string
+}
+
+func (i *Decrypt) Exec() (plain []byte, err error) {
+	var decryptor = jwk
+
+	if i.secrets != "" {
+		decryptor, err = ioconnect.NewJWKBySecretBase64(i.secrets)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	plain, err = decryptor.DecryptBySenderDID([]byte(i.cipher), i.recipient)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decrypt")
+	}
+
+	return
 }
 
 func (i *Decrypt) Execute(cmd *cobra.Command) error {
-	// token => did => serialized doc => doc datatype
-	// purpose => VM_PURPOSE_KEY_AGREEMENT
-	// iotex_diddoc_verification_method_get(doc, purpose) => index
-	// iotex_diddoc_verification_method_get(doc, purpose, index) => JWK
-	// iotex_jwe_decrypt(cipherData, Ecdh1puA256kw, A256cbcHs512, subjectSignDID, subjectMasterJWK, myKAKID) => plain data => datatype
+	plain, err := i.Exec()
+	if err != nil {
+		return err
+	}
+
+	cmd.Println(string(plain))
+
 	return nil
 }

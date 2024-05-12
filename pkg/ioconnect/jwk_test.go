@@ -79,13 +79,7 @@ func TestNewJWK(t *testing.T) {
 }
 
 func TestNewJWKBySecret(t *testing.T) {
-	// server secret
-	secrets, err := ioconnect.NewJWKSecretsFromBase64("BhogQWRIeGNPOGVSOQI/CmseOjINHmMMUHcCKBUrPhJYWVd3AS1MQ3JmN3UpJH87J30vbDJBDBpaXXEmEjY6aw==")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	server, err := ioconnect.NewJWKBySecret(secrets)
+	server, err := ioconnect.NewJWKBySecretBase64("BhogQWRIeGNPOGVSOQI/CmseOjINHmMMUHcCKBUrPhJYWVd3AS1MQ3JmN3UpJH87J30vbDJBDBpaXXEmEjY6aw==")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,6 +111,8 @@ func TestNewJWKFromDoc(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer server.Destroy()
+
 	t.Logf("server did:io:        %s", server.DID())
 	t.Logf("server did:io#key:    %s", server.KID())
 	t.Logf("server ka did:io:     %s", server.KeyAgreementDID())
