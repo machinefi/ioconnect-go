@@ -2,13 +2,11 @@ version: "3.6"
 
 services:
   sequencer:
-    #build:
-    #  dockerfile: ./sequencer.Dockerfile
-    image: ghcr.io/machinefi/sequencer:v0.10.1-rc2
+    image: ghcr.io/machinefi/sequencer:v0.10.2-rc2
     depends_on:
       - "postgres"
       - "coordinator"
-    container_name: w3bstream-sequencer
+    container_name: sprout-node-sequencer
     platform: linux/amd64
     restart: always
     ports:
@@ -18,10 +16,10 @@ services:
   coordinator:
     #build:
     #  dockerfile: ./coordinator.Dockerfile
-    image: ghcr.io/machinefi/coordinator:v0.10.1-rc2
+    image: ghcr.io/machinefi/coordinator:v0.10.2-rc2
     depends_on:
       - "postgres"
-    container_name: w3bstream-coordinator
+    container_name: sprout-node-coordinator
     platform: linux/x86_64
     restart: always
     ports:
@@ -37,14 +35,14 @@ services:
   prover:
     #build:
     #  dockerfile: ./prover.Dockerfile
-    image: ghcr.io/machinefi/prover:v0.10.1-rc2
+    image: ghcr.io/machinefi/prover:v0.10.2-rc2
     depends_on:
       - "risc0"
       - "halo2"
       - "zkwasm"
       - "wasm"
       - "postgres"
-    container_name: w3bstream-prover
+    container_name: sprout-node-prover
     platform: linux/x86_64
     restart: always
     environment:
@@ -55,13 +53,13 @@ services:
 
   halo2:
     image: wangweixiaohao2944/halo2server:v0.0.6
-    container_name: halo2-service
+    container_name: sprout-compute-halo2
     platform: linux/x86_64
     restart: always
 
   zkwasm:
     image: iotexdev/zkwasmserver:v0.0.3
-    container_name: zkwasm-service
+    container_name: sprout-compute-zkwasm
     platform: linux/x86_64
     restart: always
 
@@ -69,7 +67,7 @@ services:
     image: wangweixiaohao2944/risc0server:v1.0.0.rc4
     depends_on:
       - "postgres"
-    container_name: risc0-service
+    container_name: sprout-compute-risc0
     platform: linux/x86_64
     restart: always
     environment:
@@ -79,13 +77,13 @@ services:
 
   wasm:
     image: wangweixiaohao2944/wasmserver:v0.0.1.rc0
-    container_name: wasm-service
+    container_name: sprout-compute-wasm
     platform: linux/x86_64
     restart: always
 
   postgres:
     image: postgres:14
-    container_name: w3bstream-sprout-postgres
+    container_name: sprout-base-postgres
     restart: always
     ports:
       - "5432:5432"
@@ -102,10 +100,3 @@ services:
     volumes:
       - ./build/postgres:/var/lib/postgresql/data
 
-  srv-did-vc:
-    image: ghcr.io/machinefi/ioconnect-go:latest
-    platform: linux/amd64
-    container_name: srv-did-vc
-    restart: always
-    ports:
-      - "9999:9999"
