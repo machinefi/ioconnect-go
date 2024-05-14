@@ -43,7 +43,7 @@ func (i *Decrypt) Exec() (plain []byte, err error) {
 		}
 	}
 
-	plain, err = decryptor.DecryptBySenderDID([]byte(i.cipher), i.recipient)
+	plain, err = decryptor.Decrypt([]byte(i.cipher), i.recipient)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decrypt")
 	}
