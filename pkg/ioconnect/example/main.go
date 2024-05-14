@@ -71,7 +71,7 @@ func demoNewJWK() {
 	log.Println(string(cipher))
 
 	log.Println("server decrypt by client did =======")
-	plain, err := server.DecryptBySenderDID(cipher, client.DID())
+	plain, err := server.Decrypt(cipher, client.DID())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func demoNewJWKFromSecret() {
 	clientdid := "did:io:0x77875a13b175b37e32dac76b9b6873d6beadd134"
 	cipher := []byte(`{"ciphertext":"bEEYX8RtzQ","protected":"eyJ0eXAiOiJhcHBsaWNhdGlvbi9kaWRjb21tLWVuY3J5cHRlZCtqc29uIiwiYWxnIjoiRUNESC0xUFUrQTI1NktXIiwiZW5jIjoiQTI1NkNCQy1IUzUxMiIsInNraWQiOiJkaWQ6aW86MHg3Nzg3NWExM2IxNzViMzdlMzJkYWM3NmI5YjY4NzNkNmJlYWRkMTM0IiwiYXB1IjoiWkdsa09tbHZPakI0TnpjNE56VmhNVE5pTVRjMVlqTTNaVE15WkdGak56WmlPV0kyT0RjelpEWmlaV0ZrWkRFek5BIiwiYXB2IjoieFg3RWdpME16d2FDak8wNUJKX1ExTnFkMWVXcXUxeW1JS05oZEVvSjlGayIsImVwayI6eyJjcnYiOiJQLTI1NiIsIngiOiJRTHVWUE1ZdG9qSHlXODVpRzAtRVlsRUs0OENXQWFoWTJucER5azZCblBrIiwieSI6IjBjT3plY0JUeWRGZFgtZ2lRR2tRSzl2cDRib0J1aW9zSlZoVExOVnY3c3MiLCJrdHkiOiJFQyIsImtpZCI6IktleS1wMjU2LTIxNDc0ODM2MjEifX0","recipients":[{"header":{"kid":"did:io:0x83b6d8fb81cb74f3169c79d97ecdffefc94ef98a#Key-p256-2147483617"},"encrypted_key":"kbQgbMXKi7Sy-kTzp0HSU2mM3zhhoKTQUphm3uAXlMkFnvroadvF4_RJPq2Iv7dB"}],"tag":"WpfSapPskCpE-KUrSPDOwg","iv":"TmfJpljLYpB04iZwQw"}`)
 
-	plain, err := server.DecryptBySenderDID(cipher, clientdid)
+	plain, err := server.Decrypt(cipher, clientdid)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func demoNewJWKFromDoc() {
 	clientdid := "did:io:0x0e6fadf1cf8cd1dedd296541fcd2e27c5d36e269"
 	cipher := []byte(`{"{"ciphertext":"qqU0A5bSBg","protected":"eyJ0eXAiOiJhcHBsaWNhdGlvbi9kaWRjb21tLWVuY3J5cHRlZCtqc29uIiwiYWxnIjoiRUNESC0xUFUrQTI1NktXIiwiZW5jIjoiQTI1NkNCQy1IUzUxMiIsInNraWQiOiJkaWQ6aW86MHgwZTZmYWRmMWNmOGNkMWRlZGQyOTY1NDFmY2QyZTI3YzVkMzZlMjY5IiwiYXB1IjoiWkdsa09tbHZPakI0TUdVMlptRmtaakZqWmpoalpERmtaV1JrTWprMk5UUXhabU5rTW1VeU4yTTFaRE0yWlRJMk9RIiwiYXB2IjoiQTd3UVM0Z01IZHFBaU85blZELVZkcGFhNllQaFN4aDBEYmhlVnJ2cGlHdyIsImVwayI6eyJjcnYiOiJQLTI1NiIsIngiOiJNZW9QUDFIVDlXcUtJcE12UUtSZVBfeXlnOGJHbnh5c1BTMk1YanBqVlIwIiwieSI6ImpXRjZhYVB0MnNSanhqUklCT3FFMWFzRVE2Z05fOTB4Vk5LX2JCZWFJc2ciLCJrdHkiOiJFQyIsImtpZCI6IktleS1wMjU2LTIxNDc0ODM2MjEifX0","recipients":[{"header":{"kid":"did:io:0x0a24b85ce86ce8bafaed79f40c90c6ad817f3a79#Key-p256-2147483617"},"encrypted_key":"ngqKDJiHBtSxZjvQXsTqqrgC2duPeVMP_c9HIhGJetPzn10kUuwiRfIovoc4zi6o"}],"tag":"KKWrpNfIcFajGMR4Zi9Q-g","iv":"OUKs7uunD39bPEuwOQ"}`)
 
-	plain, err := server.DecryptBySenderDID(cipher, clientdid)
+	plain, err := server.Decrypt(cipher, clientdid)
 	if err != nil {
 		log.Printf("caused by the JWK is parsed from did doc cannot used to decrypt data: %v", err)
 		return
