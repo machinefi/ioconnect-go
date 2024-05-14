@@ -24,7 +24,7 @@ func NewEncryptDataCmd() *Encrypt {
 	_ = _cmd.Command.MarkFlagRequired("plain")
 	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "* recipient did document")
 	_ = _cmd.Command.MarkFlagRequired("recipient")
-	_cmd.Command.Flags().StringVarP(&_cmd.secrets, "secret", "", "", "(optional) encryptor's secret, if empty use the default jwk context")
+	_cmd.Command.Flags().StringVarP(&_cmd.encryptor, "encryptor", "", "", "(optional) encryptor's did, if empty use the default jwk")
 
 	return _cmd
 }
@@ -33,7 +33,7 @@ type Encrypt struct {
 	Command   *cobra.Command
 	plain     string
 	recipient string
-	secrets   string
+	encryptor string
 }
 
 func (i *Encrypt) SetPayload(plain string) {
@@ -45,13 +45,10 @@ func (i *Encrypt) SetRecipient(recipient string) {
 }
 
 func (i *Encrypt) Exec() (cipher []byte, err error) {
-	var encryptor = jwk
+	var encryptor = jwk.DID()
 
-	if i.secrets != "" {
-		encryptor, err = ioconnect.NewJWKBySecretBase64(i.secrets)
-		if err != nil {
-			return nil, err
-		}
+	if i.encryptor != "" {
+		encryptor = i.encryptor
 	}
 
 	recipient, err := ioconnect.NewJWKFromDoc([]byte(i.recipient))
@@ -59,9 +56,9 @@ func (i *Encrypt) Exec() (cipher []byte, err error) {
 		return nil, errors.Wrap(err, "failed to generate jwk from recipient doc")
 	}
 
-	cipher, err = encryptor.Encrypt([]byte(i.plain), recipient.KeyAgreementKID())
+	cipher, err = ioconnect.Encrypt([]byte(i.plain), encryptor, recipient.KeyAgreementKID())
 	if err != nil {
-		err = errors.Wrapf(err, "failed to encrypt, encryptor: %s recipient: %s", encryptor.DID(), recipient.DID())
+		err = errors.Wrapf(err, "failed to encrypt, encryptor: %s recipient: %s", encryptor, recipient.KeyAgreementDID())
 	}
 
 	return
