@@ -70,15 +70,8 @@ func demoNewJWK() {
 	}
 	log.Println(string(cipher))
 
-	log.Println("server decrypt by client jwk =======")
-	plain, err := server.Decrypt(cipher, client)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(string(plain))
-
 	log.Println("server decrypt by client did =======")
-	plain, err = server.DecryptBySenderDID(cipher, client.DID())
+	plain, err := server.DecryptBySenderDID(cipher, client.DID())
 	if err != nil {
 		log.Fatal(err)
 	}

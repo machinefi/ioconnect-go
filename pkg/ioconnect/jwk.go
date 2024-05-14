@@ -357,52 +357,50 @@ func (k *JWK) EncryptJSON(v any, recipient string) ([]byte, error) {
 }
 
 func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
-	data := (*C.char)(C.CBytes(plain))
-	defer C.free(unsafe.Pointer(data))
+	// data := (*C.char)(C.CBytes(plain))
+	// defer C.free(unsafe.Pointer(data))
 
-	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
-	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(k.DID()) // sender
-	defer C.free(unsafe.Pointer(did))
+	// alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	// enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	// did := C.CString(k.DID()) // sender
+	// defer C.free(unsafe.Pointer(did))
 
-	c_recipient := C.CString(recipient)
-	defer C.free(unsafe.Pointer(c_recipient))
+	// c_recipient := C.CString(recipient)
+	// defer C.free(unsafe.Pointer(c_recipient))
 
-	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{c_recipient}
+	// recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{c_recipient}
 
-	c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0], False.CConst())
-	if c == nil {
-		return nil, errors.Errorf("failed to encrypt data")
-	}
-	defer C.free(unsafe.Pointer(c))
-	cipher := C.GoString(c)
-	return []byte(cipher), nil
+	// c := C.iotex_jwe_encrypt(data, alg, enc, did, k._ptr, &recipients[0], False.CConst())
+	// if c == nil {
+	// 	return nil, errors.Errorf("failed to encrypt data")
+	// }
+	// defer C.free(unsafe.Pointer(c))
+	// cipher := C.GoString(c)
+	// return []byte(cipher), nil
+	return Encrypt(plain, k.DID(), recipient)
 }
 
-func (k *JWK) Decrypt(cipher []byte, sender *JWK) ([]byte, error) {
-	return k.DecryptBySenderDID(cipher, sender.DID())
-}
+func (k *JWK) Decrypt(cipher []byte, sender string) ([]byte, error) {
+	// data := (*C.char)(C.CBytes(cipher))
+	// defer C.free(unsafe.Pointer(data))
 
-func (k *JWK) DecryptBySenderDID(cipher []byte, sender string) ([]byte, error) {
-	data := (*C.char)(C.CBytes(cipher))
-	defer C.free(unsafe.Pointer(data))
+	// alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	// enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	// did := C.CString(sender) // sender
+	// defer C.free(unsafe.Pointer(did))
 
-	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
-	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
-	did := C.CString(sender) // sender
-	defer C.free(unsafe.Pointer(did))
+	// recipient := C.CString(k.KeyAgreementKID())
+	// defer C.free(unsafe.Pointer(recipient))
 
-	recipient := C.CString(k.KeyAgreementKID())
-	defer C.free(unsafe.Pointer(recipient))
+	// c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
+	// if c == nil {
+	// 	return nil, errors.Errorf("failed to decrypt data by sender did")
+	// }
+	// defer C.free(unsafe.Pointer(c))
 
-	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
-	if c == nil {
-		return nil, errors.Errorf("failed to decrypt data by sender did")
-	}
-	defer C.free(unsafe.Pointer(c))
-
-	plain := C.GoString(c)
-	return []byte(plain), nil
+	// plain := C.GoString(c)
+	// return []byte(plain), nil
+	return Decrypt(cipher, sender, k.KeyAgreementKID())
 }
 
 func (k *JWK) Export() JWKSecrets {
@@ -422,4 +420,49 @@ func (k *JWK) Destroy() {
 		defer C.free(unsafe.Pointer(kid))
 		C.iotex_registry_item_unregister(kid)
 	}
+}
+
+func Encrypt(plain []byte, senderDID, recipientKaKID string) ([]byte, error) {
+	data := (*C.char)(C.CBytes(plain))
+	defer C.free(unsafe.Pointer(data))
+
+	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	did := C.CString(senderDID)
+	defer C.free(unsafe.Pointer(did))
+
+	c_recipient := C.CString(recipientKaKID)
+	defer C.free(unsafe.Pointer(c_recipient))
+
+	recipients := [C.JOSE_JWE_RECIPIENTS_MAX]*C.char{c_recipient}
+
+	c := C.iotex_jwe_encrypt(data, alg, enc, did, nil, &recipients[0], False.CConst())
+	if c == nil {
+		return nil, errors.Errorf("failed to encrypt data")
+	}
+	defer C.free(unsafe.Pointer(c))
+	cipher := C.GoString(c)
+	return []byte(cipher), nil
+}
+
+func Decrypt(cipher []byte, senderDID, recipientKaKID string) ([]byte, error) {
+	data := (*C.char)(C.CBytes(cipher))
+	defer C.free(unsafe.Pointer(data))
+
+	alg := (C.enum_KWAlgorithms)(C.Ecdh1puA256kw)
+	enc := (C.enum_EncAlgorithm)(C.A256cbcHs512)
+	did := C.CString(senderDID) // sender
+	defer C.free(unsafe.Pointer(did))
+
+	recipient := C.CString(recipientKaKID)
+	defer C.free(unsafe.Pointer(recipient))
+
+	c := C.iotex_jwe_decrypt(data, alg, enc, did, nil, recipient)
+	if c == nil {
+		return nil, errors.Errorf("failed to decrypt data")
+	}
+	defer C.free(unsafe.Pointer(c))
+
+	plain := C.GoString(c)
+	return []byte(plain), nil
 }
