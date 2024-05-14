@@ -345,6 +345,17 @@ func (k *JWK) VerifyToken(token string) (string, error) {
 	return vc.CredentialSubject[0].ID, nil
 }
 
+func (k *JWK) EncryptJSON(v any, recipient string) ([]byte, error) {
+	if v == nil {
+		return nil, errors.New("expect non-empty input `v`")
+	}
+	plain, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return k.Encrypt(plain, recipient)
+}
+
 func (k *JWK) Encrypt(plain []byte, recipient string) ([]byte, error) {
 	data := (*C.char)(C.CBytes(plain))
 	defer C.free(unsafe.Pointer(data))
