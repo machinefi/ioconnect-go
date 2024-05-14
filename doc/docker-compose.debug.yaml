@@ -2,7 +2,7 @@ version: "3.6"
 
 services:
   sequencer:
-    image: ghcr.io/machinefi/sequencer:v0.10.2-rc2
+    image: ghcr.io/machinefi/sequencer:v0.10.2-rc4
     depends_on:
       - "postgres"
       - "coordinator"
@@ -16,7 +16,7 @@ services:
   coordinator:
     #build:
     #  dockerfile: ./coordinator.Dockerfile
-    image: ghcr.io/machinefi/coordinator:v0.10.2-rc2
+    image: ghcr.io/machinefi/coordinator:v0.10.2-rc4
     depends_on:
       - "postgres"
     container_name: sprout-node-coordinator
@@ -35,7 +35,7 @@ services:
   prover:
     #build:
     #  dockerfile: ./prover.Dockerfile
-    image: ghcr.io/machinefi/prover:v0.10.2-rc2
+    image: ghcr.io/machinefi/prover:v0.10.2-rc4
     depends_on:
       - "risc0"
       - "halo2"

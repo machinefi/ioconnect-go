@@ -4,10 +4,10 @@
 docker-compose -f docker-compose.debug.yaml up
 ```
 
-2. retrieve server KA did and export it to env var
+2. retrieve server did doc 
 
 ```shell
-export SRV_KA_DID=...
+curl http://192.168.3.102:9000/didDoc
 ```
 
 3. exchange token

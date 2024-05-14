@@ -20,8 +20,8 @@ func NewDecryptDataCmd() *Decrypt {
 
 	_cmd.Command.Flags().StringVarP(&_cmd.cipher, "cipher", "", "", "cipher data to decrypt")
 	_ = _cmd.Command.MarkFlagRequired("cipher")
-	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient did")
-	_cmd.Command.Flags().StringVarP(&_cmd.secrets, "secret", "", "", "decryptor's secret, if empty use default config")
+	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient's did doc")
+	_cmd.Command.Flags().StringVarP(&_cmd.encryptor, "encryptor", "", "", "encryptor's did, if empty use default config")
 
 	return _cmd
 }
@@ -29,21 +29,22 @@ func NewDecryptDataCmd() *Decrypt {
 type Decrypt struct {
 	Command   *cobra.Command
 	cipher    string
-	secrets   string
+	encryptor string
 	recipient string
 }
 
 func (i *Decrypt) Exec() (plain []byte, err error) {
-	var decryptor = jwk
+	var encryptor = jwk.KeyAgreementKID()
 
-	if i.secrets != "" {
-		decryptor, err = ioconnect.NewJWKBySecretBase64(i.secrets)
+	if i.recipient != "" {
+		key, err := ioconnect.NewJWKFromDoc([]byte(i.recipient))
 		if err != nil {
 			return nil, err
 		}
+		encryptor = key.KeyAgreementKID()
 	}
 
-	plain, err = decryptor.Decrypt([]byte(i.cipher), i.recipient)
+	plain, err = ioconnect.Decrypt([]byte(i.cipher), "", encryptor)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to decrypt")
 	}
