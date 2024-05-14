@@ -79,45 +79,7 @@ func (doc *DIDDoc) ParseJWK() (*JWK, error) {
 
 func (doc *DIDDoc) Destroy() {
 	if doc._ptr != nil {
-		// TODO need iotex_diddoc_destroy to release c-language memory
-		if v := doc._ptr.contexts.contexts; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.aka.alsoKnownAs; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.cons.controllers; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.vm.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.auth.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.assertion.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.keyagreement.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.ci.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.cd.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.publickey.vm; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.services.Services; v != nil {
-			C.cJSON_Delete(v)
-		}
-		if v := doc._ptr.property_set; v != nil {
-			C.cJSON_Delete((*C.cJSON)(v))
-		}
-
-		C.free(unsafe.Pointer(doc._ptr))
+		C.iotex_diddoc_destroy(doc._ptr)
 		doc._ptr = nil
 	}
 }
