@@ -6,6 +6,7 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -47,6 +48,39 @@ func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, life
 	return k, nil
 }
 
+func NewJWKBySecretKaOnly(secret string) (*JWK, error) {
+	s, err := NewKAJWKSecretFromBase64(secret)
+	if err != nil {
+		return nil, err
+	}
+	ka, err := newJWKBySecret(
+		s,
+		JwkType_EC,
+		JwkSupportKeyAlg_P256,
+		JwkLifetime_Volatile,
+		PsaKeyUsageType_Derive,
+		PsaAlgECDH,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate key agreement key")
+	}
+
+	key := ka.KID()
+	parts := strings.Split(key, "-")
+	parts[2] = "2"
+	key = strings.Join(parts, "-")
+	ka.kid = key
+
+	kid := C.CString(ka.kid)
+	defer C.free(unsafe.Pointer(kid))
+
+	status := C.iotex_registry_item_register(kid, ka._ptr)
+	if status < 0 {
+		return nil, errors.Errorf("failed to register ka kid")
+	}
+	return ka, nil
+}
+
 func NewJWKBySecretBase64(secret string) (*JWK, error) {
 	secrets, err := NewJWKSecretsFromBase64(secret)
 	if err != nil {
@@ -63,7 +97,7 @@ func NewJWKBySecret(secrets JWKSecrets) (*JWK, error) {
 	k, err := newJWKBySecret(
 		secrets[0],
 		JwkType_EC,
-		JwkSupportKeyAlg_P256,
+		JwkSupportKeyAlg_K256,
 		JwkLifetime_Volatile,
 		PsaKeyUsageType_SignHash|PsaKeyUsageType_VerifyHash|PsaKeyUsageType_Export,
 		PsaHashType_SHA_256.PsaAlgorithmECDSA(),

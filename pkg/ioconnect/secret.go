@@ -39,6 +39,21 @@ func (s *JWKSecret) IsZero() bool {
 	return len(s.raw) == 0
 }
 
+// NewKAJWKSecretFromBase64 generate ka secret only
+func NewKAJWKSecretFromBase64(str string) (JWKSecret, error) {
+	s := JWKSecret{}
+	raw, err := base64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return s, errors.Wrap(err, "failed decode ka jwk from base64")
+	}
+	if len(raw) != 32 {
+		return s, errors.New("invalid raw data length, expect 32 bytes")
+	}
+	s.raw = raw
+	return s, nil
+}
+
+// NewJWKSecretsFromBase64 generate master/ka secrets
 func NewJWKSecretsFromBase64(str string) (JWKSecrets, error) {
 	ss := JWKSecrets{}
 

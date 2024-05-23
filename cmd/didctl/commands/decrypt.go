@@ -20,8 +20,10 @@ func NewDecryptDataCmd() *Decrypt {
 
 	_cmd.Command.Flags().StringVarP(&_cmd.cipher, "cipher", "", "", "cipher data to decrypt")
 	_ = _cmd.Command.MarkFlagRequired("cipher")
-	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient's did doc")
+	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient's ka jwk base64 secret")
+	_ = _cmd.Command.MarkFlagRequired("recipient")
 	_cmd.Command.Flags().StringVarP(&_cmd.encryptor, "encryptor", "", "", "encryptor's did, if empty use default config")
+	_ = _cmd.Command.MarkFlagRequired("encryptor")
 
 	return _cmd
 }
@@ -33,32 +35,55 @@ type Decrypt struct {
 	recipient string
 }
 
-func (i *Decrypt) Exec() (plain []byte, err error) {
-	var encryptor = jwk.KeyAgreementKID()
+/*
+func (i *Decrypt) Execute(cmd *cobra.Command) error {
+	var key = jwk
 
 	if i.recipient != "" {
-		key, err := ioconnect.NewJWKFromDoc([]byte(i.recipient))
+		_key, err := ioconnect.NewJWKBySecretBase64(i.recipient)
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "failed to parse recipient's jwk secret")
 		}
-		encryptor = key.KeyAgreementKID()
+		key = _key
 	}
 
-	plain, err = ioconnect.Decrypt([]byte(i.cipher), "", encryptor)
+	plain, err := ioconnect.Decrypt([]byte(i.cipher), i.encryptor, key.KeyAgreementKID())
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decrypt")
+		return errors.Wrap(err, "failed to decrypt")
 	}
 
-	return
+	cmd.Println("encryptor did:    ", i.encryptor)
+	cmd.Println("recipient ka kid: ", key.KeyAgreementKID())
+	cmd.Println("plain data:       ", string(plain))
+	return nil
 }
+*/
 
 func (i *Decrypt) Execute(cmd *cobra.Command) error {
-	plain, err := i.Exec()
-	if err != nil {
-		return err
+	recipient := jwk.KeyAgreementKID()
+	encryptor := jwk.DID()
+
+	if i.recipient != "" {
+		s, err := ioconnect.NewJWKBySecretKaOnly(i.recipient)
+		if err != nil {
+			return errors.Wrap(err, "failed to parse recipient's ka jwk secret")
+		}
+		recipient = s.KID()
 	}
+	cmd.Println("recipient ka kid: ", recipient)
+	if i.encryptor != "" {
+		r, err := ioconnect.NewJWKFromDoc([]byte(i.encryptor))
+		if err != nil {
+			return errors.Wrap(err, "failed to parse encryptor's doc")
+		}
+		encryptor = r.DID()
+	}
+	cmd.Println("encryptor did:    ", encryptor)
 
-	cmd.Println(string(plain))
-
+	plain, err := ioconnect.Decrypt([]byte(i.cipher), encryptor, recipient)
+	if err != nil {
+		return errors.Wrap(err, "failed to decrypt")
+	}
+	cmd.Println("plain data:       ", string(plain))
 	return nil
 }

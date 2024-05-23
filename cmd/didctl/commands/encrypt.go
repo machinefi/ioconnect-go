@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"bytes"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -44,7 +42,7 @@ func (i *Encrypt) SetRecipient(recipient string) {
 	i.recipient = recipient
 }
 
-func (i *Encrypt) Exec() (cipher []byte, err error) {
+func (i *Encrypt) Execute(cmd *cobra.Command) error {
 	var encryptor = jwk.DID()
 
 	if i.encryptor != "" {
@@ -53,26 +51,16 @@ func (i *Encrypt) Exec() (cipher []byte, err error) {
 
 	recipient, err := ioconnect.NewJWKFromDoc([]byte(i.recipient))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate jwk from recipient doc")
+		return errors.Wrap(err, "failed to generate jwk from recipient doc")
 	}
 
-	cipher, err = ioconnect.Encrypt([]byte(i.plain), encryptor, recipient.KeyAgreementKID())
+	cipher, err := ioconnect.Encrypt([]byte(i.plain), encryptor, recipient.KeyAgreementKID())
 	if err != nil {
-		err = errors.Wrapf(err, "failed to encrypt, encryptor: %s recipient: %s", encryptor, recipient.KeyAgreementDID())
+		return errors.Wrapf(err, "failed to encrypt, encryptor: %s recipient: %s", encryptor, recipient.KeyAgreementDID())
 	}
 
-	return
-}
-
-func (i *Encrypt) Execute(cmd *cobra.Command) error {
-	cipher, err := i.Exec()
-	if err != nil {
-		return err
-	}
-
-	cipher = bytes.Replace(cipher, []byte("\t"), nil, -1)
-	cipher = bytes.Replace(cipher, []byte(" "), nil, -1)
-	cipher = bytes.Replace(cipher, []byte("\n"), nil, -1)
-	cmd.Println(string(cipher))
+	cmd.Println("encryptor did:    ", i.encryptor)
+	cmd.Println("recipient ka kid: ", recipient.KeyAgreementKID())
+	cmd.Println("cipher data:      ", string(cipher))
 	return nil
 }
