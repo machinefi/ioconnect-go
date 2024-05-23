@@ -59,7 +59,7 @@ func (i *Encrypt) Execute(cmd *cobra.Command) error {
 		return errors.Wrapf(err, "failed to encrypt, encryptor: %s recipient: %s", encryptor, recipient.KeyAgreementDID())
 	}
 
-	cmd.Println("encryptor did:    ", i.encryptor)
+	cmd.Println("encryptor did:    ", encryptor)
 	cmd.Println("recipient ka kid: ", recipient.KeyAgreementKID())
 	cmd.Println("cipher data:      ", string(cipher))
 	return nil
