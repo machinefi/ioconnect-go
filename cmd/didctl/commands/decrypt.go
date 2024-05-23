@@ -1,6 +1,10 @@
 package commands
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -22,6 +26,8 @@ func NewDecryptDataCmd() *Decrypt {
 	_ = _cmd.Command.MarkFlagRequired("cipher")
 	_cmd.Command.Flags().StringVarP(&_cmd.recipient, "recipient", "", "", "recipient's ka jwk base64 secret")
 	_ = _cmd.Command.MarkFlagRequired("recipient")
+	_cmd.Command.Flags().Uint32VarP(&_cmd.recipientID, "recipient-id", "", 0, "key id of recipient's secret")
+	_ = _cmd.Command.MarkFlagRequired("recipient-id")
 	_cmd.Command.Flags().StringVarP(&_cmd.encryptor, "encryptor", "", "", "encryptor's did, if empty use default config")
 	_ = _cmd.Command.MarkFlagRequired("encryptor")
 
@@ -29,55 +35,31 @@ func NewDecryptDataCmd() *Decrypt {
 }
 
 type Decrypt struct {
-	Command   *cobra.Command
-	cipher    string
-	encryptor string
-	recipient string
+	Command     *cobra.Command
+	cipher      string
+	encryptor   string
+	recipient   string
+	recipientID uint32
 }
-
-/*
-func (i *Decrypt) Execute(cmd *cobra.Command) error {
-	var key = jwk
-
-	if i.recipient != "" {
-		_key, err := ioconnect.NewJWKBySecretBase64(i.recipient)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse recipient's jwk secret")
-		}
-		key = _key
-	}
-
-	plain, err := ioconnect.Decrypt([]byte(i.cipher), i.encryptor, key.KeyAgreementKID())
-	if err != nil {
-		return errors.Wrap(err, "failed to decrypt")
-	}
-
-	cmd.Println("encryptor did:    ", i.encryptor)
-	cmd.Println("recipient ka kid: ", key.KeyAgreementKID())
-	cmd.Println("plain data:       ", string(plain))
-	return nil
-}
-*/
 
 func (i *Decrypt) Execute(cmd *cobra.Command) error {
 	recipient := jwk.KeyAgreementKID()
-	encryptor := jwk.DID()
+	encryptor := i.encryptor
+
+	defer func() {
+		cwd, _ := os.Getwd()
+		pattern := filepath.Join(cwd, fmt.Sprintf("%016x.psa_its", i.recipientID))
+		os.RemoveAll(pattern)
+	}()
 
 	if i.recipient != "" {
-		s, err := ioconnect.NewJWKBySecretKaOnly(i.recipient)
+		s, err := ioconnect.NewJWKBySecretKaOnly(i.recipient, i.recipientID)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse recipient's ka jwk secret")
 		}
 		recipient = s.KID()
 	}
 	cmd.Println("recipient ka kid: ", recipient)
-	if i.encryptor != "" {
-		r, err := ioconnect.NewJWKFromDoc([]byte(i.encryptor))
-		if err != nil {
-			return errors.Wrap(err, "failed to parse encryptor's doc")
-		}
-		encryptor = r.DID()
-	}
 	cmd.Println("encryptor did:    ", encryptor)
 
 	plain, err := ioconnect.Decrypt([]byte(i.cipher), encryptor, recipient)

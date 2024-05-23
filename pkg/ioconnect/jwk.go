@@ -6,7 +6,6 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -22,11 +21,15 @@ func NewJWKFromDoc(content []byte) (*JWK, error) {
 	return doc.ParseJWK()
 }
 
-func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType) (*JWK, error) {
+func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, lifetime JwkLifetime, usage PsaKeyUsageType, alg PsaHashType, id ...uint32) (*JWK, error) {
 	c_secret := (*C.uint8_t)(C.CBytes(secret.Bytes()))
 	defer C.free(unsafe.Pointer(c_secret))
 
 	k := &JWK{}
+	if len(id) > 0 && id[0] > 0 {
+		k.id = id[0]
+	}
+
 	k._ptr = C.iotex_jwk_generate_by_secret(
 		c_secret,
 		32,
@@ -48,7 +51,7 @@ func newJWKBySecret(secret JWKSecret, tpe JwkType, keyAlg JwkSupportKeyAlg, life
 	return k, nil
 }
 
-func NewJWKBySecretKaOnly(secret string) (*JWK, error) {
+func NewJWKBySecretKaOnly(secret string, keyID uint32) (*JWK, error) {
 	s, err := NewKAJWKSecretFromBase64(secret)
 	if err != nil {
 		return nil, err
@@ -57,19 +60,14 @@ func NewJWKBySecretKaOnly(secret string) (*JWK, error) {
 		s,
 		JwkType_EC,
 		JwkSupportKeyAlg_P256,
-		JwkLifetime_Volatile,
+		JwkLifetime_Persistent,
 		PsaKeyUsageType_Derive,
 		PsaAlgECDH,
+		keyID,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate key agreement key")
 	}
-
-	key := ka.KID()
-	parts := strings.Split(key, "-")
-	parts[2] = "2"
-	key = strings.Join(parts, "-")
-	ka.kid = key
 
 	kid := C.CString(ka.kid)
 	defer C.free(unsafe.Pointer(kid))
